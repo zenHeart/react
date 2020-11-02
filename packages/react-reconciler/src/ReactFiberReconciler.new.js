@@ -244,6 +244,7 @@ export function createContainer(
   hydrate: boolean,
   hydrationCallbacks: null | SuspenseHydrationCallbacks,
 ): OpaqueRoot {
+  debugger
   return createFiberRoot(containerInfo, tag, hydrate, hydrationCallbacks);
 }
 
