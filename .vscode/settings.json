@@ -1,0 +1,10 @@
+{
+  "eslint.options": {
+    "resolvePluginsRelativeTo": "./node_modules/"
+  },
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.validate.enable": false,
+  "prettier.requireConfig": true,
+  "javascript.validate.enable": false,
+  "prettier.prettierPath": "./node_modules/prettier"
+}

@@ -1,0 +1,7 @@
+---
+description: AI Response
+globs: 
+alwaysApply: true
+---
+
+- Always responds in English

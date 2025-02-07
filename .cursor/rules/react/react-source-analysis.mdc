@@ -1,0 +1,48 @@
+---
+alwaysApply: true
+description: "React source code analysis guidance for deep understanding"
+---
+
+# React Source Code Analysis Guide
+
+## Analysis Approach
+
+When analyzing React source code, always:
+
+1. **Trace execution paths** through the codebase starting from entry points
+2. **Identify key data structures** and their relationships (Fiber, Hook, UpdateQueue)
+3. **Map function call chains** for critical operations (render, update, commit)
+4. **Document findings** in the [analysis](mdc:analysis/) folder
+
+## File Reference Format
+
+Always use precise file references with line numbers when discussing React internals:
+- Format: `[DescriptiveName](../packages/package-name/src/FileName.js#LXX)`
+- Example: `[Fiber creation](../packages/react-reconciler/src/ReactFiber.js#L138)`
+- Example: `[useState implementation](../packages/react-reconciler/src/ReactFiberHooks.js#L1920)`
+
+## Key Analysis Areas
+
+### 1. Core Data Structures
+- [Fiber Node Structure](../packages/react-reconciler/src/ReactFiber.js) - The fundamental work unit
+- [Hook Structure](../packages/react-reconciler/src/ReactFiberHooks.js) - State management mechanism
+- [Update Queue](../packages/react-reconciler/src/ReactFiberClassUpdateQueue.js) - Update batching system
+
+### 2. Critical Workflows
+- **Initial Render**: `createRoot` → `updateContainer` → `scheduleUpdateOnFiber` → `performWorkOnRoot`
+- **State Updates**: `setState` → `dispatchSetState` → `enqueueConcurrentHookUpdate` → re-render
+- **Reconciliation**: `beginWork` → `completeWork` → `commitRoot`
+
+### 3. Performance Features
+- Time slicing in [Scheduler](../packages/scheduler/src/Scheduler.js)
+- Priority lanes in [ReactFiberLane.js](../packages/react-reconciler/src/ReactFiberLane.js)
+- Concurrent rendering in [ReactFiberWorkLoop.js](../packages/react-reconciler/src/ReactFiberWorkLoop.js)
+
+## Documentation Requirements
+
+When creating analysis documents:
+1. Include precise file references with line numbers
+2. Create flow diagrams for complex processes
+3. Reference related concepts from [overview.md](mdc:analysis/overview.md)
+4. Update [TODO.md](mdc:analysis/TODO.md) with completed analysis
+5. Use code examples from actual React source with proper attribution

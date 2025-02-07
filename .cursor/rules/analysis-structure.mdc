@@ -1,0 +1,38 @@
+---
+description: "Document skeleton: C4 → Bird’s‑Eye → Detail with TOC"
+globs:
+  - "analysis/**/*.md"
+autoAttach: false
+---
+
+# {{componentName}} Analysis
+
+<!-- TOC -->
+- [{{componentName}} Analysis](#componentname-analysis)
+  - [1. Context (C4 Level 1)](#1-context-c4-level1)
+  - [2. Containers (C4 Level 2)](#2-containers-c4-level2)
+  - [3. Components (C4 Level 3)](#3-components-c4-level3)
+  - [4. Bird’s‑Eye Overview](#4-birdseye-overview)
+  - [5. Detailed Walk‑through](#5-detailed-walkthrough)
+
+## 1. Context (C4 Level 1)
+- System scope, key actors, and environment prerequisites.
+
+## 2. Containers (C4 Level 2)
+- Major modules and their high‑level responsibilities.
+
+## 3. Components (C4 Level 3)
+- Core classes/functions, with purpose and interactions.
+
+## 4. Bird’s‑Eye Overview
+> A one‑paragraph summary of how everything fits together.
+
+## 5. Detailed Walk‑through
+<details>
+<summary>Click to expand sections</summary>
+
+- **5.1 Section A**: Description and rationale.
+- **5.2 Section B**: Detailed logic steps.
+- **5.x**: …
+
+</details>

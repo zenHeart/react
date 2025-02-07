@@ -1,0 +1,71 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug React Render Process",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": [
+        "test",
+        "--watch",
+        "--testTimeout",
+        "10000000",
+        "--inspect-brk",
+        "ReactRenderDebug-test",
+        "--testNamePattern",
+        "should demonstrate the complete render process from createRoot to DOM"
+      ],
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "env": {
+        "NODE_ENV": "development",
+        "RELEASE_CHANNEL": "experimental"
+      },
+      "sourceMaps": true,
+      "outFiles": [
+        "${workspaceFolder}/build/**/*.js"
+      ]
+    },
+    {
+      "name": "Debug React Scheduler",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": [
+        "test",
+        "--watch",
+        "--testTimeout",
+        "10000000",
+        "--inspect-brk",
+        "Scheduler-test"
+      ],
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "env": {
+        "NODE_ENV": "development",
+        "RELEASE_CHANNEL": "experimental"
+      }
+    },
+    {
+      "name": "Debug React Reconciler",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/packages/react-reconciler/src/ReactFiberReconciler.js",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "env": {
+        "NODE_ENV": "development"
+      }
+    }
+  ]
+}

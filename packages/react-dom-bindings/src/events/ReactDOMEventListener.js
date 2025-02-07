@@ -124,6 +124,7 @@ function dispatchDiscreteEvent(
   container: EventTarget,
   nativeEvent: AnyNativeEvent,
 ) {
+  debugger
   const prevTransition = ReactSharedInternals.T;
   ReactSharedInternals.T = null;
   const previousPriority = getCurrentUpdatePriority();

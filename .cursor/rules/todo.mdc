@@ -1,0 +1,15 @@
+---
+description: "A rule to make analysis strictly follow and update a central TODO list."
+alwaysApply: true
+globs: 
+  - analysis/TODO.md
+---
+
+# TODO-Driven Analysis
+
+All code analysis activities must be driven by the `analysis/TODO.md` file.
+
+1.  **Check for `analysis/TODO.md`**: At the beginning of any analysis request, first look for this file.
+2.  **Suggest a Plan**: If the file is empty or doesn't exist, propose a logical, step-by-step learning plan based on the project's nature. Ask the user for approval before creating the file.
+3.  **Follow the Plan**: Address one TODO item at a time, in order. Do not skip ahead unless the user explicitly instructs you to.
+4.  **Update Progress**: After completing a topic and its exercise (as per `learning-flow.mdc`), update the `analysis/TODO.md` file by checking off the completed item (e.g., `[x] Task Name`).

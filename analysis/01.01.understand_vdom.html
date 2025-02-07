@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>01.01 - Understanding Virtual DOM Objects</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .concept-box {
+            background: #e8f5e8;
+            border-left: 4px solid #4CAF50;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 0 5px 5px 0;
+        }
+        
+        .demo-area {
+            background: #fff3e0;
+            border: 2px solid #ff9800;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        
+        .debug-panel {
+            background: #1e1e1e;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        .exercise {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .mastery-check {
+            background: #fff8e1;
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .highlight {
+            background: #ffeb3b;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        
+        .property {
+            background: #f3e5f5;
+            border: 1px solid #9c27b0;
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📖 01.01 - Understanding Virtual DOM Objects</h1>
+        <p><strong>🎯 Concept:</strong> What React.createElement() returns</p>
+        <p><strong>⏱️ Time:</strong> 15 minutes | <strong>🎓 Difficulty:</strong> Beginner</p>
+    </div>
+
+    <div class="concept-box">
+        <h2>🧠 Core Concept</h2>
+        <p>When you write JSX like <code>&lt;button&gt;Click me&lt;/button&gt;</code>, Babel transforms it to <code>React.createElement("button", null, "Click me")</code>. This function returns a <strong>Virtual DOM object</strong> - a plain JavaScript object that describes what you want to render.</p>
+        <p><strong>Key Point:</strong> VDOM objects are NOT DOM elements. They're descriptions of DOM elements.</p>
+    </div>
+
+    <div class="container">
+        <div class="panel">
+            <h2>🔬 Interactive Exploration</h2>
+            <div class="demo-area">
+                <h3>Create and Inspect VDOM Objects</h3>
+                <button onclick="createSimpleElement()">Create Simple Element</button>
+                <button onclick="createNestedElement()">Create Nested Element</button>
+                <button onclick="createComponentElement()">Create Component Element</button>
+                <button onclick="clearOutput()">Clear Output</button>
+            </div>
+            <div class="debug-panel" id="output"></div>
+        </div>
+        
+        <div class="panel">
+            <h2>📊 VDOM Object Structure</h2>
+            <div class="property">
+                <strong>type:</strong> String (HTML tag) or Function (component)
+            </div>
+            <div class="property">
+                <strong>key:</strong> Unique identifier for reconciliation
+            </div>
+            <div class="property">
+                <strong>props:</strong> Object containing attributes and children
+            </div>
+            <div class="property">
+                <strong>props.children:</strong> Array of child elements
+            </div>
+            <div class="property">
+                <strong>_owner:</strong> Component that created this element
+            </div>
+            <div class="property">
+                <strong>_store:</strong> Internal React metadata
+            </div>
+            
+            <h3>Example VDOM Object:</h3>
+            <div class="code-block">
+{
+  type: "button",
+  key: null,
+  props: {
+    className: "btn",
+    onClick: function() { ... },
+    children: "Click me"
+  },
+  _owner: null,
+  _store: { validated: false }
+}
+            </div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>🎯 Hands-On Exercises</h2>
+        
+        <div class="exercise">
+            <h3>Exercise 1: Basic Element Creation</h3>
+            <p>Create a VDOM object for: <code>&lt;h1 className="title"&gt;Hello World&lt;/h1&gt;</code></p>
+            <button onclick="exercise1()">Show Solution</button>
+            <div id="exercise1-result"></div>
+        </div>
+        
+        <div class="exercise">
+            <h3>Exercise 2: Nested Elements</h3>
+            <p>Create a VDOM object for: <code>&lt;div&gt;&lt;p&gt;Paragraph&lt;/p&gt;&lt;span&gt;Span&lt;/span&gt;&lt;/div&gt;</code></p>
+            <button onclick="exercise2()">Show Solution</button>
+            <div id="exercise2-result"></div>
+        </div>
+        
+        <div class="exercise">
+            <h3>Exercise 3: Component Element</h3>
+            <p>Create a VDOM object for a function component: <code>&lt;MyComponent name="React" /&gt;</code></p>
+            <button onclick="exercise3()">Show Solution</button>
+            <div id="exercise3-result"></div>
+        </div>
+    </div>
+
+    <div class="mastery-check">
+        <h2>✅ Mastery Check</h2>
+        <p><strong>Before moving to the next step, ensure you can:</strong></p>
+        <ol>
+            <li>✅ Explain what a Virtual DOM object is</li>
+            <li>✅ Identify the 6 main properties of a VDOM object</li>
+            <li>✅ Create VDOM objects using React.createElement</li>
+            <li>✅ Understand the difference between type (string vs function)</li>
+            <li>✅ Inspect VDOM objects in browser DevTools</li>
+        </ol>
+        <button onclick="checkMastery()" style="background: #ff9800;">🎓 Test My Understanding</button>
+        <div id="mastery-result"></div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "react": "https://esm.sh/react@19.1.0?dev"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import React from "react";
+        
+        // Make React available globally for exercises
+        window.React = React;
+        
+        const output = document.getElementById("output");
+        let stepCounter = 0;
+        
+        function log(message, obj = null) {
+            stepCounter++;
+            const div = document.createElement('div');
+            div.innerHTML = `<strong>Step ${stepCounter}:</strong> ${message}`;
+            if (obj) {
+                div.innerHTML += `<pre style="margin: 5px 0; padding: 5px; background: #333; border-radius: 3px; white-space: pre-wrap;">${JSON.stringify(obj, null, 2)}</pre>`;
+            }
+            output.appendChild(div);
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        // Global functions for interactive exploration
+        window.createSimpleElement = function() {
+            log("🔧 Creating simple button element...");
+            const element = React.createElement("button", 
+                { className: "btn", onClick: () => alert("Clicked!") }, 
+                "Click me"
+            );
+            log("📊 Simple VDOM object created:", {
+                type: element.type,
+                key: element.key,
+                props: {
+                    className: element.props.className,
+                    onClick: typeof element.props.onClick,
+                    children: element.props.children
+                },
+                _owner: element._owner,
+                hasStore: !!element._store
+            });
+            
+            // Store for DevTools inspection
+            window.simpleElement = element;
+            log("💡 Tip: Check 'window.simpleElement' in DevTools Console");
+        };
+        
+        window.createNestedElement = function() {
+            log("🔧 Creating nested div with multiple children...");
+            const element = React.createElement("div",
+                { className: "container" },
+                React.createElement("h2", null, "Title"),
+                React.createElement("p", null, "Description"),
+                React.createElement("button", { disabled: true }, "Disabled Button")
+            );
+            
+            log("📊 Nested VDOM object created:", {
+                type: element.type,
+                key: element.key,
+                props: {
+                    className: element.props.className,
+                    childrenCount: element.props.children.length,
+                    childTypes: element.props.children.map(child => child.type)
+                }
+            });
+            
+            log("🔍 Children details:", element.props.children.map((child, i) => ({
+                index: i,
+                type: child.type,
+                props: child.props
+            })));
+            
+            window.nestedElement = element;
+            log("💡 Tip: Check 'window.nestedElement' in DevTools Console");
+        };
+        
+        window.createComponentElement = function() {
+            log("🔧 Creating component element...");
+            
+            // Define a simple component
+            function MyComponent(props) {
+                return React.createElement("div", null, `Hello, ${props.name}!`);
+            }
+            
+            const element = React.createElement(MyComponent, 
+                { name: "React", version: "19" }
+            );
+            
+            log("📊 Component VDOM object created:", {
+                type: element.type.name,
+                typeIsFunction: typeof element.type === 'function',
+                key: element.key,
+                props: element.props
+            });
+            
+            window.componentElement = element;
+            window.MyComponent = MyComponent;
+            log("💡 Tip: Check 'window.componentElement' and 'window.MyComponent' in DevTools");
+        };
+        
+        window.clearOutput = function() {
+            output.innerHTML = '';
+            stepCounter = 0;
+            log("🧹 Output cleared");
+        };
+        
+        // Exercise solutions
+        window.exercise1 = function() {
+            const result = document.getElementById("exercise1-result");
+            const element = React.createElement("h1", { className: "title" }, "Hello World");
+            
+            result.innerHTML = `
+                <div class="code-block">
+                <strong>Solution:</strong><br/>
+                const element = React.createElement("h1", { className: "title" }, "Hello World");<br/><br/>
+                <strong>Result:</strong><br/>
+                ${JSON.stringify(element, null, 2)}
+                </div>
+            `;
+            
+            window.exercise1Element = element;
+        };
+        
+        window.exercise2 = function() {
+            const result = document.getElementById("exercise2-result");
+            const element = React.createElement("div", null,
+                React.createElement("p", null, "Paragraph"),
+                React.createElement("span", null, "Span")
+            );
+            
+            result.innerHTML = `
+                <div class="code-block">
+                <strong>Solution:</strong><br/>
+                const element = React.createElement("div", null,<br/>
+                &nbsp;&nbsp;React.createElement("p", null, "Paragraph"),<br/>
+                &nbsp;&nbsp;React.createElement("span", null, "Span")<br/>
+                );<br/><br/>
+                <strong>Children count:</strong> ${element.props.children.length}<br/>
+                <strong>Child types:</strong> ${element.props.children.map(c => c.type).join(", ")}
+                </div>
+            `;
+            
+            window.exercise2Element = element;
+        };
+        
+        window.exercise3 = function() {
+            const result = document.getElementById("exercise3-result");
+            
+            function MyComponent(props) {
+                return React.createElement("div", null, `Hello, ${props.name}!`);
+            }
+            
+            const element = React.createElement(MyComponent, { name: "React" });
+            
+            result.innerHTML = `
+                <div class="code-block">
+                <strong>Solution:</strong><br/>
+                function MyComponent(props) {<br/>
+                &nbsp;&nbsp;return React.createElement("div", null, \`Hello, \${props.name}!\`);<br/>
+                }<br/><br/>
+                const element = React.createElement(MyComponent, { name: "React" });<br/><br/>
+                <strong>Type is function:</strong> ${typeof element.type === 'function'}<br/>
+                <strong>Component name:</strong> ${element.type.name}
+                </div>
+            `;
+            
+            window.exercise3Element = element;
+        };
+        
+        // Mastery check
+        window.checkMastery = function() {
+            const result = document.getElementById("mastery-result");
+            
+            const questions = [
+                {
+                    q: "What does React.createElement return?",
+                    a: "A plain JavaScript object describing a UI element",
+                    check: () => true
+                },
+                {
+                    q: "What's the difference between type as string vs function?",
+                    a: "String = HTML element (div, button), Function = React component",
+                    check: () => true
+                },
+                {
+                    q: "Where are child elements stored?",
+                    a: "In props.children property",
+                    check: () => true
+                }
+            ];
+            
+            let html = '<div style="background: #e8f5e8; padding: 10px; border-radius: 5px; margin-top: 10px;">';
+            html += '<h3>🎓 Mastery Questions:</h3>';
+            
+            questions.forEach((q, i) => {
+                html += `<p><strong>Q${i+1}:</strong> ${q.q}</p>`;
+                html += `<p><strong>A${i+1}:</strong> ${q.a}</p>`;
+            });
+            
+            html += '<p><strong>✅ If you can answer these confidently, you\'re ready for step 01.02!</strong></p>';
+            html += '</div>';
+            
+            result.innerHTML = html;
+        };
+        
+        // Initialize
+        log("📖 01.01 - Understanding Virtual DOM Objects");
+        log("🎯 Goal: Master what React.createElement() returns");
+        log("📝 Instructions: Click the buttons above to explore VDOM objects");
+    </script>
+</body>
+</html> 

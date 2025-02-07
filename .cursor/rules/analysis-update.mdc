@@ -1,0 +1,12 @@
+---
+description: "Auto-update existing analysis on code changes"
+globs:
+  - "src/**"
+autoAttach: true
+---
+
+- When code in `src/` changes, check for an existing `analysis/` doc.
+- If found, prompt to **update** sections affected by the diff:
+  - Regenerate affected C4 diagrams or deep‑dive text.
+  - Preserve manual edits outside changed areas.
+- Output an actionable diff and commit suggestion.

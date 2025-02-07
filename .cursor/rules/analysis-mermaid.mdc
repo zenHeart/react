@@ -1,0 +1,19 @@
+---
+description: "Mermaid diagram guidance for complex flows"
+globs:
+  - "src/**"
+autoAttach: true
+---
+
+When you detect loops, conditional branches, or event sequences in code:
+
+1. Generate a **Mermaid** diagram block immediately under the related narrative.
+2. Use clear node labels with function/class names.
+3. Example:
+   
+   ```mermaid
+   flowchart TD
+     A[Start] --> B{Condition?}
+     B -->|Yes| C[Do X]
+     B -->|No| D[Do Y]
+   ```

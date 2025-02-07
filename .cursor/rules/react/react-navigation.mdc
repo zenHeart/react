@@ -1,0 +1,33 @@
+---
+alwaysApply: true
+---
+
+# React Codebase Navigation
+
+## Package Structure Reference
+
+When navigating React source code, use these key entry points:
+
+### Core Packages
+- **react**: [packages/react/src/ReactClient.js](../packages/react/src/ReactClient.js) - Public API exports
+- **react-dom**: [packages/react-dom/src/client/ReactDOMClient.js](../packages/react-dom/src/client/ReactDOMClient.js) - DOM renderer entry
+- **react-reconciler**: [packages/react-reconciler/src/ReactFiberReconciler.js](../packages/react-reconciler/src/ReactFiberReconciler.js) - Core reconciler
+- **scheduler**: [packages/scheduler/src/Scheduler.js](../packages/scheduler/src/Scheduler.js) - Time slicing
+
+### Analysis Documentation
+Always link analysis back to:
+- [Project Overview](mdc:analysis/overview.md) - High-level architecture
+- [Analysis TODO](mdc:analysis/TODO.md) - Current focus areas
+
+### Code Reference Standards
+1. **Always include line numbers** in file references
+2. **Link to specific functions** rather than entire files when possible
+3. **Reference related analysis** documents for context
+4. **Update TODO list** when completing analysis sections
+
+## Quick Reference Patterns
+
+- Fiber creation: [createFiber](../packages/react-reconciler/src/ReactFiber.js#L138)
+- Hook mounting: [mountWorkInProgressHook](../packages/react-reconciler/src/ReactFiberHooks.js#L803)
+- Update scheduling: [scheduleUpdateOnFiber](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L885)
+- DOM commits: [commitMutationEffects](../packages/react-reconciler/src/ReactFiberCommitWork.js#L2108)

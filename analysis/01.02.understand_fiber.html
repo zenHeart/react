@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>01.02 - Understanding Fiber Node Structure</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .concept-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 0 5px 5px 0;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .demo-area {
+            background: #e8f5e8;
+            border: 2px solid #4caf50;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .debug-panel {
+            background: #1e1e1e;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 350px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        
+        .property-group {
+            background: #f3e5f5;
+            border: 1px solid #9c27b0;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 5px;
+        }
+        
+        .property {
+            font-family: monospace;
+            background: #fff;
+            padding: 5px;
+            margin: 3px 0;
+            border-radius: 3px;
+            border-left: 3px solid #9c27b0;
+        }
+        
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background: #1976D2;
+        }
+        
+        .exercise {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .mastery-check {
+            background: #f1f8e9;
+            border: 2px solid #4caf50;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .fiber-tree {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-line;
+        }
+        
+        .highlight {
+            background: #ffeb3b;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🧬 01.02 - Understanding Fiber Node Structure</h1>
+        <p><strong>🎯 Concept:</strong> What a Fiber node contains and how fibers relate to each other</p>
+        <p><strong>⏱️ Time:</strong> 15 minutes | <strong>🎓 Difficulty:</strong> Beginner</p>
+    </div>
+
+    <div class="concept-box">
+        <h2>🧠 Core Concept</h2>
+        <p>A <strong>Fiber node</strong> is React's internal representation of a component or element. While VDOM objects describe <em>what</em> you want to render, Fiber nodes track <em>how</em> to render it, including work state, relationships, and effects.</p>
+        <p><strong>Key Point:</strong> Every React element becomes a Fiber node. Fibers form a tree structure that mirrors your component hierarchy.</p>
+    </div>
+
+    <div class="container">
+        <div class="panel">
+            <h2>🔬 Interactive Fiber Exploration</h2>
+            <div class="demo-area">
+                <h3>Create and Inspect Fiber Nodes</h3>
+                <button onclick="createSimpleFiber()">Create Simple Fiber</button>
+                <button onclick="createFiberTree()">Create Fiber Tree</button>
+                <button onclick="inspectFiberProps()">Inspect Fiber Properties</button>
+                <button onclick="clearOutput()">Clear Output</button>
+            </div>
+            <div class="debug-panel" id="output"></div>
+        </div>
+        
+        <div class="panel">
+            <h2>📊 Fiber Node Properties</h2>
+            
+            <div class="property-group">
+                <h4>🏷️ Identity & Type</h4>
+                <div class="property"><strong>tag:</strong> Fiber type (0=FunctionComponent, 1=ClassComponent, 5=HostComponent)</div>
+                <div class="property"><strong>type:</strong> Component function or HTML tag string</div>
+                <div class="property"><strong>key:</strong> Unique identifier for reconciliation</div>
+                <div class="property"><strong>elementType:</strong> Original element type</div>
+            </div>
+
+            <div class="property-group">
+                <h4>🔗 Tree Relationships</h4>
+                <div class="property"><strong>return:</strong> Parent fiber</div>
+                <div class="property"><strong>child:</strong> First child fiber</div>
+                <div class="property"><strong>sibling:</strong> Next sibling fiber</div>
+                <div class="property"><strong>index:</strong> Position among siblings</div>
+            </div>
+
+            <div class="property-group">
+                <h4>💾 State & Props</h4>
+                <div class="property"><strong>pendingProps:</strong> New props to be applied</div>
+                <div class="property"><strong>memoizedProps:</strong> Props from last render</div>
+                <div class="property"><strong>memoizedState:</strong> Component state or hooks</div>
+                <div class="property"><strong>stateNode:</strong> DOM node or component instance</div>
+            </div>
+
+            <div class="property-group">
+                <h4>⚡ Work & Effects</h4>
+                <div class="property"><strong>flags:</strong> Side effects to perform</div>
+                <div class="property"><strong>lanes:</strong> Priority of this fiber's work</div>
+                <div class="property"><strong>alternate:</strong> Work-in-progress counterpart</div>
+                <div class="property"><strong>updateQueue:</strong> Pending updates</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>🌳 Fiber Tree Structure</h2>
+        <div class="fiber-tree" id="fiber-tree">
+App (FunctionComponent)
+├── div (HostComponent)
+│   ├── h1 (HostComponent)
+│   │   └── "Hello World" (HostText)
+│   └── Counter (FunctionComponent)
+│       └── button (HostComponent)
+│           └── "Count: 0" (HostText)
+        </div>
+        <p><strong>Navigation:</strong> Each fiber knows its parent (return), first child (child), and next sibling (sibling)</p>
+    </div>
+
+    <div class="panel">
+        <h2>🎯 Hands-On Exercises</h2>
+        
+        <div class="exercise">
+            <h3>Exercise 1: Fiber Tag Identification</h3>
+            <p>What fiber tag would these elements have?</p>
+            <ul>
+                <li><code>&lt;div&gt;</code> → ?</li>
+                <li><code>&lt;MyComponent /&gt;</code> → ?</li>
+                <li><code>"Hello"</code> → ?</li>
+            </ul>
+            <button onclick="exercise1()">Show Answer</button>
+            <div id="exercise1-result"></div>
+        </div>
+        
+        <div class="exercise">
+            <h3>Exercise 2: Tree Navigation</h3>
+            <p>Given this JSX, trace the fiber relationships:</p>
+            <div class="code-block">&lt;App&gt;&lt;Header /&gt;&lt;Main /&gt;&lt;/App&gt;</div>
+            <button onclick="exercise2()">Show Tree Structure</button>
+            <div id="exercise2-result"></div>
+        </div>
+        
+        <div class="exercise">
+            <h3>Exercise 3: Fiber Properties</h3>
+            <p>Create a fiber and inspect its key properties</p>
+            <button onclick="exercise3()">Create & Inspect</button>
+            <div id="exercise3-result"></div>
+        </div>
+    </div>
+
+    <div class="mastery-check">
+        <h2>✅ Mastery Check</h2>
+        <p><strong>Before moving to the next step, ensure you can:</strong></p>
+        <ol>
+            <li>✅ Explain what a Fiber node represents</li>
+            <li>✅ Identify the main fiber property groups (identity, tree, state, work)</li>
+            <li>✅ Navigate fiber tree relationships (parent, child, sibling)</li>
+            <li>✅ Understand fiber tags for different element types</li>
+            <li>✅ Inspect fiber nodes in React DevTools</li>
+        </ol>
+        <button onclick="checkMastery()" style="background: #ff9800;">🎓 Test My Understanding</button>
+        <div id="mastery-result"></div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "react": "https://esm.sh/react@19.1.0?dev",
+            "react-dom/client": "https://esm.sh/react-dom@19.1.0/client?dev"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import React from "react";
+        import ReactDOM from "react-dom/client";
+        
+        // Make React available globally
+        window.React = React;
+        window.ReactDOM = ReactDOM;
+        
+        const output = document.getElementById("output");
+        let stepCounter = 0;
+        
+        function log(message, obj = null) {
+            stepCounter++;
+            const div = document.createElement('div');
+            div.innerHTML = `<strong>Step ${stepCounter}:</strong> ${message}`;
+            if (obj) {
+                div.innerHTML += `<pre style="margin: 5px 0; padding: 5px; background: #333; border-radius: 3px; white-space: pre-wrap;">${JSON.stringify(obj, null, 2)}</pre>`;
+            }
+            output.appendChild(div);
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        // Fiber tag constants (React internal values)
+        const FiberTags = {
+            FunctionComponent: 0,
+            ClassComponent: 1,
+            IndeterminateComponent: 2,
+            HostRoot: 3,
+            HostPortal: 4,
+            HostComponent: 5,
+            HostText: 6,
+            Fragment: 7,
+            Mode: 8,
+            ContextConsumer: 9,
+            ContextProvider: 10,
+            ForwardRef: 11,
+            Profiler: 12,
+            SuspenseComponent: 13,
+            MemoComponent: 14,
+            SimpleMemoComponent: 15,
+            LazyComponent: 16,
+            IncompleteClassComponent: 17,
+            DehydratedFragment: 18,
+            SuspenseListComponent: 19,
+            ScopeComponent: 21,
+            OffscreenComponent: 22,
+            LegacyHiddenComponent: 23,
+            CacheComponent: 24,
+            TracingMarkerComponent: 25
+        };
+        
+        // Global functions for interactive exploration
+        window.createSimpleFiber = function() {
+            log("🔧 Creating a simple component to inspect its fiber...");
+            
+            function SimpleComponent() {
+                return React.createElement("div", { className: "simple" }, "Hello Fiber!");
+            }
+            
+            const container = document.createElement("div");
+            const root = ReactDOM.createRoot(container);
+            root.render(React.createElement(SimpleComponent));
+            
+            // Wait for fiber creation then inspect
+            setTimeout(() => {
+                const fiber = container._reactInternalFiber || 
+                             container.__reactInternalInstance ||
+                             container.firstChild?._reactInternalFiber;
+                
+                if (fiber) {
+                    log("📊 Fiber node found! Key properties:", {
+                        tag: fiber.tag,
+                        type: fiber.type?.name || fiber.type,
+                        key: fiber.key,
+                        hasReturn: !!fiber.return,
+                        hasChild: !!fiber.child,
+                        hasSibling: !!fiber.sibling,
+                        memoizedProps: fiber.memoizedProps,
+                        flags: fiber.flags,
+                        lanes: fiber.lanes
+                    });
+                    
+                    window.simpleFiber = fiber;
+                    log("💡 Tip: Check 'window.simpleFiber' in DevTools Console");
+                } else {
+                    log("❌ Could not access fiber directly (React 19 restrictions)");
+                    log("💡 Use React DevTools to inspect fiber structure");
+                }
+            }, 100);
+        };
+        
+        window.createFiberTree = function() {
+            log("🌳 Creating a component tree to see fiber relationships...");
+            
+            function Header() {
+                return React.createElement("h1", null, "Header");
+            }
+            
+            function Main() {
+                return React.createElement("main", null,
+                    React.createElement("p", null, "Content"),
+                    React.createElement("button", null, "Click me")
+                );
+            }
+            
+            function App() {
+                return React.createElement("div", { className: "app" },
+                    React.createElement(Header),
+                    React.createElement(Main)
+                );
+            }
+            
+            const container = document.createElement("div");
+            const root = ReactDOM.createRoot(container);
+            root.render(React.createElement(App));
+            
+            log("📊 Fiber tree structure created:");
+            log(`
+App (FunctionComponent, tag: ${FiberTags.FunctionComponent})
+└── div (HostComponent, tag: ${FiberTags.HostComponent})
+    ├── Header (FunctionComponent, tag: ${FiberTags.FunctionComponent})
+    │   └── h1 (HostComponent, tag: ${FiberTags.HostComponent})
+    │       └── "Header" (HostText, tag: ${FiberTags.HostText})
+    └── Main (FunctionComponent, tag: ${FiberTags.FunctionComponent})
+        └── main (HostComponent, tag: ${FiberTags.HostComponent})
+            ├── p (HostComponent, tag: ${FiberTags.HostComponent})
+            │   └── "Content" (HostText, tag: ${FiberTags.HostText})
+            └── button (HostComponent, tag: ${FiberTags.HostComponent})
+                └── "Click me" (HostText, tag: ${FiberTags.HostText})
+            `);
+            
+            window.fiberTreeContainer = container;
+            log("💡 Use React DevTools to explore the actual fiber tree");
+        };
+        
+        window.inspectFiberProps = function() {
+            log("🔍 Exploring fiber properties in detail...");
+            
+            const fiberProps = {
+                "Identity & Type": {
+                    tag: "Identifies fiber type (0=Function, 1=Class, 5=Host, 6=Text)",
+                    type: "Component function or HTML tag string",
+                    key: "Unique identifier for reconciliation",
+                    elementType: "Original element type before any wrapping"
+                },
+                "Tree Structure": {
+                    return: "Parent fiber (null for root)",
+                    child: "First child fiber (null if no children)",
+                    sibling: "Next sibling fiber (null if last child)",
+                    index: "Position among siblings (0-based)"
+                },
+                "State & Props": {
+                    pendingProps: "New props to be applied this render",
+                    memoizedProps: "Props from the last completed render",
+                    memoizedState: "Component state or hook state",
+                    stateNode: "DOM node (for host) or component instance"
+                },
+                "Work & Effects": {
+                    flags: "Side effects to perform (placement, update, deletion)",
+                    subtreeFlags: "Combined flags from all descendants",
+                    lanes: "Priority lanes for this fiber's work",
+                    childLanes: "Combined priority lanes from children",
+                    alternate: "Work-in-progress fiber counterpart",
+                    updateQueue: "Queue of pending state updates"
+                }
+            };
+            
+            Object.entries(fiberProps).forEach(([category, props]) => {
+                log(`📋 ${category}:`);
+                Object.entries(props).forEach(([prop, description]) => {
+                    log(`  • ${prop}: ${description}`);
+                });
+            });
+            
+            log("🎯 Key Insight: Fibers are mutable and reused across renders for performance");
+        };
+        
+        window.clearOutput = function() {
+            output.innerHTML = '';
+            stepCounter = 0;
+            log("🧹 Output cleared");
+        };
+        
+        // Exercise solutions
+        window.exercise1 = function() {
+            const result = document.getElementById("exercise1-result");
+            result.innerHTML = `
+                <div class="code-block">
+                <strong>Fiber Tags:</strong><br/>
+                • &lt;div&gt; → tag: ${FiberTags.HostComponent} (HostComponent)<br/>
+                • &lt;MyComponent /&gt; → tag: ${FiberTags.FunctionComponent} (FunctionComponent)<br/>
+                • "Hello" → tag: ${FiberTags.HostText} (HostText)<br/><br/>
+                <strong>Rule:</strong> HTML elements = HostComponent, Components = FunctionComponent, Text = HostText
+                </div>
+            `;
+        };
+        
+        window.exercise2 = function() {
+            const result = document.getElementById("exercise2-result");
+            result.innerHTML = `
+                <div class="code-block">
+                <strong>Fiber Tree Relationships:</strong><br/><br/>
+                App Fiber:<br/>
+                • return: null (root)<br/>
+                • child: → Header Fiber<br/>
+                • sibling: null<br/><br/>
+                Header Fiber:<br/>
+                • return: → App Fiber<br/>
+                • child: null (or internal content)<br/>
+                • sibling: → Main Fiber<br/><br/>
+                Main Fiber:<br/>
+                • return: → App Fiber<br/>
+                • child: null (or internal content)<br/>
+                • sibling: null (last child)
+                </div>
+            `;
+        };
+        
+        window.exercise3 = function() {
+            const result = document.getElementById("exercise3-result");
+            
+            function TestComponent(props) {
+                const [count, setCount] = React.useState(0);
+                return React.createElement("button", 
+                    { onClick: () => setCount(count + 1) }, 
+                    `Count: ${count}`
+                );
+            }
+            
+            const element = React.createElement(TestComponent, { name: "test" });
+            
+            result.innerHTML = `
+                <div class="code-block">
+                <strong>Created element for TestComponent:</strong><br/>
+                Type: ${element.type.name}<br/>
+                Props: ${JSON.stringify(element.props)}<br/><br/>
+                <strong>When this becomes a fiber, it will have:</strong><br/>
+                • tag: ${FiberTags.FunctionComponent} (FunctionComponent)<br/>
+                • type: TestComponent function<br/>
+                • memoizedState: Hook linked list (useState)<br/>
+                • stateNode: null (function components don't have instances)<br/>
+                • updateQueue: null (uses hooks instead)<br/><br/>
+                💡 <strong>Tip:</strong> Use React DevTools Profiler to see actual fiber properties
+                </div>
+            `;
+        };
+        
+        // Mastery check
+        window.checkMastery = function() {
+            const result = document.getElementById("mastery-result");
+            
+            const questions = [
+                {
+                    q: "What's the difference between a React element and a Fiber node?",
+                    a: "Element = immutable description, Fiber = mutable work unit with state and relationships"
+                },
+                {
+                    q: "How do you navigate from a fiber to its parent?",
+                    a: "Use the 'return' property (fiber.return)"
+                },
+                {
+                    q: "What fiber tag do HTML elements like <div> have?",
+                    a: `Tag ${FiberTags.HostComponent} (HostComponent)`
+                },
+                {
+                    q: "Where is component state stored in a fiber?",
+                    a: "In the 'memoizedState' property (linked list for hooks)"
+                }
+            ];
+            
+            let html = '<div style="background: #e8f5e8; padding: 10px; border-radius: 5px; margin-top: 10px;">';
+            html += '<h3>🎓 Mastery Questions:</h3>';
+            
+            questions.forEach((q, i) => {
+                html += `<p><strong>Q${i+1}:</strong> ${q.q}</p>`;
+                html += `<p><strong>A${i+1}:</strong> ${q.a}</p>`;
+            });
+            
+            html += '<p><strong>✅ If you can answer these confidently, you\'re ready for step 01.03!</strong></p>';
+            html += '</div>';
+            
+            result.innerHTML = html;
+        };
+        
+        // Initialize
+        log("🧬 01.02 - Understanding Fiber Node Structure");
+        log("🎯 Goal: Master fiber properties and tree relationships");
+        log("📝 Instructions: Click the buttons above to explore fiber nodes");
+        log("💡 Pro tip: Open React DevTools to see real fiber structures");
+    </script>
+</body>
+</html> 

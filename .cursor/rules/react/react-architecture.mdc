@@ -1,0 +1,112 @@
+---
+description: "React architecture deep dive analysis patterns"
+---
+
+# React Architecture Deep Dive
+
+## Core Architecture Components
+
+### 1. Fiber Architecture
+- **Definition Location**: [ReactInternalTypes.js](../packages/react-reconciler/src/ReactInternalTypes.js#L127)
+- **Creation Logic**: [createFiber](../packages/react-reconciler/src/ReactFiber.js#L138)
+- **Work Tags**: [ReactWorkTags.js](../packages/react-reconciler/src/ReactWorkTags.js)
+
+### 2. Reconciler System
+- **Main Loop**: [workLoopSync](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L2456)/[workLoopConcurrent](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L2747)
+- **Update Processing**: [processUpdateQueue](../packages/react-reconciler/src/ReactFiberClassUpdateQueue.js#L485)
+- **Diff Algorithm**: [reconcileChildren](../packages/react-reconciler/src/ReactFiberBeginWork.js#L369)
+
+### 3. Hook Implementation
+- **Hook Structure**: [Hook type](../packages/react-reconciler/src/ReactFiberHooks.js#L188)
+- **Hook Dispatcher**: [ReactHooks.js](../packages/react/src/ReactHooks.js#L57)
+- **Hook State Management**: [updateReducer](../packages/react-reconciler/src/ReactFiberHooks.js#L1384)
+
+## Analysis Questions to Answer
+
+For each component/system:
+1. **What**: What is its primary responsibility?
+2. **How**: How does it interact with other systems?
+3. **When**: When in the render cycle does it execute?
+4. **Why**: Why was it designed this way?
+5. **Performance**: What are the performance implications?
+
+## Expected Documentation Structure
+
+```markdown
+# [Component Name] Analysis
+
+## Overview
+Brief description referencing [overview.md](mdc:analysis/overview.md)
+
+## Core Implementation
+- **Main file**: [precise link with line number]
+- **Key functions**: [list with links]
+- **Data structures**: [types and interfaces]
+
+## Execution Flow
+Step-by-step process with code references
+
+## Related Components
+How it connects to other React systems
+
+## Performance Considerations
+Optimization strategies and bottlenecks
+```
+```
+
+## 4. React File Navigation Rule
+
+Create `.cursor/rules/react-navigation.mdc`:
+
+```markdown
+---
+alwaysApply: true
+---
+
+# React Codebase Navigation
+
+## Package Structure Reference
+
+When navigating React source code, use these key entry points:
+
+### Core Packages
+- **react**: [packages/react/src/ReactClient.js](../packages/react/src/ReactClient.js) - Public API exports
+- **react-dom**: [packages/react-dom/src/client/ReactDOMClient.js](../packages/react-dom/src/client/ReactDOMClient.js) - DOM renderer entry
+- **react-reconciler**: [packages/react-reconciler/src/ReactFiberReconciler.js](../packages/react-reconciler/src/ReactFiberReconciler.js) - Core reconciler
+- **scheduler**: [packages/scheduler/src/Scheduler.js](../packages/scheduler/src/Scheduler.js) - Time slicing
+
+### Analysis Documentation
+Always link analysis back to:
+- [Project Overview](mdc:analysis/overview.md) - High-level architecture
+- [Analysis TODO](mdc:analysis/TODO.md) - Current focus areas
+
+### Code Reference Standards
+1. **Always include line numbers** in file references
+2. **Link to specific functions** rather than entire files when possible
+3. **Reference related analysis** documents for context
+4. **Update TODO list** when completing analysis sections
+
+## Quick Reference Patterns
+
+- Fiber creation: [createFiber](../packages/react-reconciler/src/ReactFiber.js#L138)
+- Hook mounting: [mountWorkInProgressHook](../packages/react-reconciler/src/ReactFiberHooks.js#L803)
+- Update scheduling: [scheduleUpdateOnFiber](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L885)
+- DOM commits: [commitMutationEffects](../packages/react-reconciler/src/ReactFiberCommitWork.js#L2108)
+```
+
+## Implementation Instructions
+
+1. Create each of these files in your `.cursor/rules/` directory
+2. The rules will automatically guide AI responses to:
+   - Use precise file references with line numbers
+   - Focus on React internals analysis
+   - Structure documentation consistently
+   - Link analysis back to your overview and TODO
+
+3. Update your analysis workflow:
+   - Reference specific lines when discussing React internals
+   - Document findings in structured format
+   - Cross-reference related components
+   - Track progress in TODO.md
+
+These rules will ensure that every interaction helps you build a comprehensive understanding of React's architecture while maintaining precise documentation with proper source code references.

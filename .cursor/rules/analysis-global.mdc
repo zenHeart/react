@@ -1,0 +1,24 @@
+---
+description: "Global analysis defaults: output folder, naming & tone"
+globs:
+  - "**/*.js"
+  - "**/*.ts"
+alwaysApply: true
+---
+
+# Analysis Defaults
+
+@learning-flow.mdc
+@todo-driven-analysis.mdc
+
+- **Output folder**: Write all docs under `analysis/`, mirroring source path.
+- **File naming**: For `src/foo/bar.ts`, generate `analysis/foo/bar.md`.
+- **Tone**: Concise, tutorial style; explain **what**, **why**, and **how** for newcomers.
+- **Table of contents**: Auto-generate a TOC under the title for quick navigation.
+
+
+## RULES
+
+- When reviewing  source code, provide a concise explanation of how the code functions and its purpose.focus on key structures and logic
+- Identify key patterns and best practices applied in the code.
+- Demystify complex logic by breaking down code into simple steps or flow.
