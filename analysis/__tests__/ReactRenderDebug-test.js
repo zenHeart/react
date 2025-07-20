@@ -19,6 +19,8 @@ describe('React Render Process - Browser Debug', () => {
     React = require('react');
     ReactDOMClient = require('react-dom/client');
     ({ act } = require('internal-test-utils'));
+    const { propertyMapConvert } = require('./utils');
+    globalThis.debugTools = propertyMapConvert;
   });
 
   describe('Complete Render Flow', () => {

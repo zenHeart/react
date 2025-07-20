@@ -1,4 +1,4 @@
-
+'use strict';
 
 const TagMap = {
   0: 'FunctionComponent',
@@ -31,7 +31,7 @@ const TagMap = {
   29: 'Throw',
 };
 
-export const getTagName = (tag) => {
+export const tag = (tag) => {
   return TagMap[tag] || 'Unknown';
 };
 
@@ -160,6 +160,7 @@ const getLanesAsString = (lanes) => {
 };
 
 export const propertyMapConvert = {
+  tag: (val) => `${val}: ${tag(val)}`,
   mode: (val) => `${val}: ${getModeAsString(val)}`,
   flags: (val) => `${val}: ${getFlagsAsString(val)}`,
   subtreeFlags: (val) => `${val}: ${getFlagsAsString(val)}`,
