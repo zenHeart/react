@@ -500,7 +500,123 @@ container -right-> fiberNode: __reactContainerxx
 
 ## render 流程
 
+### 代码执行
+
 调用 [`root.render(reactNode`)](https://react.dev/reference/react-dom/client/createRoot#root-render) 渲染组件到 container 中，核心逻辑包括
 
-1. 调用工作循环 performWorkOnRoot
-2. 执行 workLoopSync() 循环
+1.  执行 [scheduleImmediateRootScheduleTask](../packages/react-reconciler/src/ReactFiberRootScheduler.js#L665) 
+   1. 支持采用 `queueMicrotask` 推入任务
+   2. 不支持采用 [unstable_scheduleCallback](../packages/scheduler/src/forks/Scheduler.js#L327) 执行任务采用 setTimeout(scheduleImmediateRootScheduleTask,0) 调度任务
+2. 异步触发 [processRootScheduleInMicrotask](../packages/react-reconciler/src/ReactFiberRootScheduler.js#L258)
+3. 触发 [scheduleTaskForRootDuringMicrotask](../packages/react-reconciler/src/ReactFiberRootScheduler.js#L383)
+4. 生成回调节点 [newCallbackNode](../packages/react-reconciler/src/ReactFiberRootScheduler.js#L499)
+5. 异步执行 [performWorkOnRootViaSchedulerTask](../packages/react-reconciler/src/ReactFiberRootScheduler.js#L512)
+6. 触发 [performWorkOnRoot](../packages/react-reconciler/src/ReactFiberRootScheduler.js#L589)
+7. 执行 [performWorkOnRoot](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L1015)
+   1. 基于 shouldTimeSlice 判断触发 [renderRootConcurrent](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L2474) 还是 [renderRootSync](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L2318)
+   2. 触发 [renderRootSync](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L2318)
+      1. [prepareFreshStack](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L1835) 准备需要处理的帧
+         1. [createWorkInProgress](../packages/react-reconciler/src/ReactFiber.js#L) 此处完成的 continaer Fiber Node alternate 和 current 的赋值
+         2. 这个值会赋值给 [rootWorkInProgress](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L1971) 作为后续第一个执行的 workInProgress
+      2. 初始化 container 对应的 FiberNode , [createWorkInprogress](../packages/react-reconciler/src/ReactFiber.js#L327) 该节点挂在 rootFiber.current, current 属性是在 [createFiberRoot](../packages/react-reconciler/src/ReactFiberRoot.js#L212) 的时候初始化成功
+   3. 触发 [workLoopSync](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L2467)
+      ```js
+      function workLoopSync() {
+         // Perform work without checking if we need to yield between fiber.
+         while (workInProgress !== null) {
+            performUnitOfWork(workInProgress);
+         }
+      }
+      ```
+   4. 执行 [performUnitOfWork](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L2776)
+      1. 调试模式追加信息后 [runWithFiberInDEV](../packages/react-reconciler/src/ReactCurrentFiber.js#L55) 调用 beginWork
+      2. 直接调用 [beginWork](../packages/react-reconciler/src/ReactFiberBeginWork.js#L4017)
+   5. [beginWork(current, unitOfWork, entangledRenderLanes)](../packages/react-reconciler/src/ReactFiberBeginWork.js#L4017)
+      * **current** unitOfWork.alternate 双 buffer 的交替节点
+      * **unitOfWork** 工作节点，一开始是 contaier 对应的 fiberNode， beginWork 中对应的参数名叫 workInProgress，就是处理的节点
+      * **entangleRenderLanes** 对应 `32:DefaultLane,NonIdelLanes`
+8.  [beginWork(current, unitOfWork, entangledRenderLanes)](../packages/react-reconciler/src/ReactFiberBeginWork.js#L4017)
+   1. 当前节点不为空 [ `if (current !== null)`](../packages/react-reconciler/src/ReactFiberBeginWork.js#L4039)
+      1. 提取属性对比 [`oldProps !== newProps`](../packages/react-reconciler/src/ReactFiberBeginWork.js#L4044), 如果属性不一样标记 [`didReceiveUpdate = true`](../packages/react-reconciler/src/ReactFiberBeginWork.js#L4051)
+         ```js
+         /**
+          * 由于 current.alternate 对应着缓存的快照
+         此处说明 
+         * fiberNode.alternate.memoizedProps 表示历史 props 状态
+         * fiberNode.pendingProps 表示最新的状态
+         */
+         const oldProps = current.memoizedProps
+         const newProps = workInProgress.pengdingProps
+         ```
+      2. 属性一直则判断 context 是否有变化 [checkScheduledUpdateOrContext](../packages/react-reconciler/src/ReactFiberBeginWork.js#L3752)
+      3. 如果都没有变化则触发 [attemptEarlyBailoutIfNoScheduledUpdate](../packages/react-reconciler/src/ReactFiberBeginWork.js#L3779)
+   2. 当前节点为空标记 `didReceiveUpdate = false`
+   3. `清空当前 workInProgress.lanes = NoLanes`
+   4. 根据 `workInpress.tag `节点类型处理不同节点，根节点为 `3: HostRoot`
+   5. 触发 [updateHostRoot](../packages/react-reconciler/src/ReactFiberBeginWork.js#L4147)
+   6. udpateHostRoot 返回的下一个节点回赋值给 next 从而触发深度遍历 [`workInProgress = next;`](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L2816)
+9. [updateHostRoot](../packages/react-reconciler/src/ReactFiberBeginWork.js#L1734) 
+   1. 注入 HOST context , [pushHostRootContext](../packages/react-reconciler/src/ReactFiberBeginWork.js#L1719)
+   2. 从 workInpress 节点中提取出 [updateQueue](../packages/react-reconciler/src/ReactFiberClassUpdateQueue.js#L495) 拿到容器的 App 节点
+   3. 调用 [reconcileChildren](../packages/react-reconciler/src/ReactFiberBeginWork.js#L341) 赋值给 workInProgress.child
+      1.  该函数调用 [createChildReconciler](../packages/react-reconciler/src/ReactChildFiber.js#L387) 返回的 [reconcileChildFibers](../packages/react-reconciler/src/ReactChildFiber.js#L1941)
+      2. [reconcileChildFibersImpl](../packages/react-reconciler/src/ReactChildFiber.js#L1755)
+         1. 根据 `newChild.$$typeof` 来进行不同的处理，这里是 VDOM 树，此处回调用 [reconcileSingleElement](../packages/react-reconciler/src/ReactChildFiber.js#L1622)
+            1. [reconcileSingleElement](../packages/react-reconciler/src/ReactChildFiber.js#L1622) 会根据 element.type 创建对应的 FiberNode
+            2. 这里会调用 [createFiberFromElement](../packages/react-reconciler/src/ReactFiber.js#L719) 
+               1. 内部会调用 [createFiberFromTypeAndProps](../packages/react-reconciler/src/ReactFiber.js#L547) 来生成实际的 fiber 节点
+9. beginWork 结束后会生成 rootFiber 对应的 children 绑定在 workInprogress 对应的节点上，这里会完成 render 对应的 VDOM 转换为 rootFiber.children 的逻辑。
+10. rootFiber 对应的 children 生成后
+   1. 如果没有子节点，说明任务执行完成，会触发 [completeUnitOfWork](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L3059)
+   2. 如果任然有子节点回继续深度遍历，知道生成所有字节点对应的 fiber tree.
+   <!-- TODO:  子节点树是如何生成的，具体步骤？ -->
+11. [completeUnitOfWork](../packages/react-reconciler/src/
+ReactFiberWorkLoop.js#L3059) 如果一个fiber 树深度遍历完成，会先从最内层的 fiber 节点开始触发此流程
+   1. 如果当前节点没有完成则执行 [unwindUnitOfWork](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L3124)
+   2. 执行 [completeWork](../packages/react-reconciler/src/ReactFiberCompleteWork.js#L1064)
+   3. 如果节点有对应的 sibling， 则会将 [`workInProgress = siblingFiber`](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L3108) 这会进一步触发 [workLoopSync](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L2467) 遍历完所有节点
+12. [completeWork](../packages/react-reconciler/src/ReactFiberCompleteWork.js#L1064) 根据节点类型执行对应操作， [`switch (workInProgress.tag)`](../packages/react-reconciler/src/ReactFiberCompleteWork.js#L1075) 
+   1. 生成 dom 节点 [createInstance](../packages/react-reconciler/src/ReactFiberCompleteWork.js#L1404)
+   2. 添加子节点，[appendAllChildren](../packages/react-reconciler/src/ReactFiberCompleteWork.js#L1414)
+   3. [赋值給stateNode](../packages/react-reconciler/src/ReactFiberCompleteWork.js#L1413)
+13. 完成 render 阶段任务，会触发  [finishConcurrentRender](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L1287)
+   1. 内部会触发 [commitRootWhenReady](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L1408)
+      1. 执行 [commitRoot](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L1511)
+         1. [flushMutationEffects](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L3527)
+         2. [flushLayoutEffects](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L3573)
+
+
+
+### 核心说明
+
+1. fiber 树的遍历是基于 workLoopSync循环
+
+```js
+function workLoopSync() {
+  // Perform work without checking if we need to yield between fiber.
+  while (workInProgress !== null) {
+    performUnitOfWork(workInProgress);
+  }
+}
+```
+2. 该循环会先深度遍历子节点，子节点的会基于 `workInProgress.tag` 调用 [beginWork](../packages/react-reconciler/src/ReactFiberBeginWork.js#L4017) 生成子节点的 fiber,  赋值给 `workInProgress.child`, 然后基于判断这个 child 决定是否继续运行 workLoopSync
+
+```js
+if (next === null) {
+   // If this doesn't spawn new work, complete the current work.
+   completeUnitOfWork(unitOfWork);
+} else {
+   workInProgress = next;
+}
+```
+3. 如果没有字节点会触发 [completeUnitOfWork](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L3062) 来完成 dom 的生成赋值到 stateNode, 这里生层对应的 dom 后会调用 [completeWork](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L3093) ,如果发现完成的 completeWork 还有 sbiling, 会继续触发 workInProgress 的推入
+
+```js
+const siblingFiber = completedWork.sibling;
+if (siblingFiber !== null) {
+// If there is more work to do in this returnFiber, do that next.
+workInProgress = siblingFiber;
+return;
+}
+```
+4. 在完成先深度在兄弟的遍历后整个 render 阶段会标记为完成。
