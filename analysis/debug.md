@@ -1,30 +1,117 @@
-# react 源码分析
+# React 源码分析
 
-## 目标
+## 📋 目录
 
-1. 了解 createRoot 流程 done
-2. render 流程 working
-   1. workInProgress 是在哪个阶段创建和推送的
-3. Fiber 架构的核心对象和功能
-4. 了解生命周期钩子是如何触发的？
-5. 事件代理原理
-6. 更新的流程是怎样的？
-7. 如何做差异比对的？
+1. [🎯 学习目标](#学习目标)
+2. [🏗️ 核心概念](#核心概念)
+3. [🔧 Fiber 架构](#fiber-架构)
+4. [⚡ 渲染流程](#渲染流程)
+5. [🔄 更新机制](#更新机制)
+6. [🎯 事件系统](#事件系统)
+7. [🎣 Hooks 机制](#hooks-机制)
+8. [🔍 调试工具](#调试工具)
+9. [📊 性能优化](#性能优化)
 
-## 核心包
+## 🎯 学习目标
 
-1. **scheduler** 调度器实现在每帧内执行，避免同步渲染的阻塞问题
-2. **react-reconciler** 完成 Fiber 树的构建和更新
+**初学者路线图:**
+1. ✅ 了解 createRoot 流程 (已完成)
+2. 🔄 render 流程 (进行中)
+   - workInProgress 是在哪个阶段创建和推送的
+3. 🔧 Fiber 架构的核心对象和功能
+4. 🎣 了解生命周期钩子是如何触发的？
+5. 🎯 事件代理原理
+6. 🔄 更新的流程是怎样的？
+7. 🔍 如何做差异比对的？
 
-## 核心对象
+**学习进度:** 2/7 完成
 
-### Fiber
+## 🏗️ 核心概念
 
-1. Fiber 对象，包含如下功能，详细属性如下
-   -  引用 Element 树结构
-   -  作为渲染的基本单位
-   -  作为调度的基本单位
-   -  RootFiber 为 UI 树
+### React 架构概览
+
+React 采用 **Fiber 架构**，主要包含以下核心包：
+
+1. **scheduler** - 调度器实现在每帧内执行，避免同步渲染的阻塞问题
+2. **react-reconciler** - 完成 Fiber 树的构建和更新
+3. **react-dom** - DOM 渲染器，处理浏览器环境
+4. **react** - 核心 API 和 Hooks
+
+### 🎯 核心设计理念
+
+**1. 双缓冲机制 (Double Buffering)**
+- **Current Tree**: 当前显示在屏幕上的 Fiber 树
+- **WorkInProgress Tree**: 正在构建的新 Fiber 树
+- **alternate**: 两个树之间的连接，实现快速切换
+
+**2. 深度优先遍历**
+```js
+// 遍历顺序：A → B → D → E → C → F
+//     A
+//    / \
+//   B   C
+//  / \   \
+// D   E   F
+```
+
+**3. 副作用收集**
+- **flags**: 当前节点的副作用标记
+- **subtreeFlags**: 子树中所有副作用的标记
+- **bubbleProperties**: 将子节点的副作用向上冒泡
+
+### 🔄 React 渲染流程概览
+
+```mermaid
+graph TD
+    A[JSX] --> B[ReactElement]
+    B --> C[Fiber Tree]
+    C --> D[Render Phase]
+    D --> E[Commit Phase]
+    E --> F[DOM Update]
+    
+    subgraph "Render Phase"
+        D1[beginWork] --> D2[reconcileChildren]
+        D2 --> D3[completeWork]
+    end
+    
+    subgraph "Commit Phase"
+        E1[Before Mutation] --> E2[Mutation]
+        E2 --> E3[Layout]
+        E3 --> E4[Passive Effects]
+    end
+```
+
+## 🔧 Fiber 架构
+
+### Fiber 对象详解
+
+Fiber 是 React 16+ 的核心概念，它：
+
+- **引用 Element 树结构** - 将 ReactElement 转换为可工作的单元
+- **作为渲染的基本单位** - 每个 Fiber 节点代表一个工作单元
+- **作为调度的基本单位** - 支持时间切片和优先级调度
+- **RootFiber 为 UI 树** - 整个应用的状态树根节点
+
+#### 🔄 Fiber 节点结构
+
+```mermaid
+graph TD
+    A[Fiber Node] --> B[Tree Structure]
+    A --> C[Work Unit]
+    A --> D[State Container]
+    
+    B --> B1[return/parent]
+    B --> B2[child]
+    B --> B3[sibling]
+    
+    C --> C1[tag]
+    C --> C2[type]
+    C --> C3[stateNode]
+    
+    D --> D1[memoizedState]
+    D --> D2[memoizedProps]
+    D --> D3[updateQueue]
+```
 
 ```js
 export type Fiber = {
@@ -1046,37 +1133,180 @@ ReactFiberWorkLoop.js#L3059) 如果一个fiber 树深度遍历完成，会先从
          1. [flushMutationEffects](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L3527)
          2. [flushLayoutEffects](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L3573)
 
-#### 🎯 核心概念解释
+## 🔄 更新机制
 
-**1. 双缓冲机制 (Double Buffering)**
-- **Current Tree**: 当前显示在屏幕上的 Fiber 树
-- **WorkInProgress Tree**: 正在构建的新 Fiber 树
-- **alternate**: 两个树之间的连接，实现快速切换
+### State Update Flow
 
-**2. 深度优先遍历**
-```js
-// 遍历顺序：A → B → D → E → C → F
-//     A
-//    / \
-//   B   C
-//  / \   \
-// D   E   F
+当组件状态发生变化时，React 会触发更新流程：
+
+```mermaid
+graph TD
+    A[setState] --> B[创建 Update 对象]
+    B --> C[加入 UpdateQueue]
+    C --> D[调度更新]
+    D --> E[执行 Render Phase]
+    E --> F[执行 Commit Phase]
+    F --> G[DOM 更新]
+    
+    subgraph "Update 对象"
+        B1[lane: 优先级]
+        B2[tag: 更新类型]
+        B3[payload: 新状态]
+        B4[callback: 回调函数]
+    end
 ```
 
-**3. 副作用收集**
-- **flags**: 当前节点的副作用标记
-- **subtreeFlags**: 子树中所有副作用的标记
-- **bubbleProperties**: 将子节点的副作用向上冒泡
+#### 🔄 更新类型详解
 
-#### 🔍 调试技巧
+```js
+// packages/react-reconciler/src/ReactUpdateQueue.js
+export type Update<State> = {
+  lane: Lane, // 优先级
+  // 0 (UpdateState): 普通的状态更新（如调用 setState）
+  // 1 (ReplaceState): 替换当前的状态
+  // 2 (ForceUpdate): 强制组件重新渲染
+  // 3 (CaptureUpdate): 用于错误边界，捕获错误相关的更新
+  tag: 0 | 1 | 2 | 3, // 标识更新的类型
+  payload: any, // 存储与更新相关的数据，可能是新状态的对象或一个返回新状态的函数
+  callback: (() => mixed) | null, // 在更新完成后执行的回调函数
+  next: Update<State> | null, // 指向下一个更新，形成链表结构
+};
+```
 
-**1. 追踪 Fiber 节点创建**
+#### 🎯 更新调度机制
+
+**1. 优先级系统**
+```js
+// packages/react-reconciler/src/ReactFiberLane.js
+const SyncLane = 0b0000000000000000000000000000010;
+const InputContinuousLane = 0b0000000000000000000000000001000;
+const DefaultLane = 0b0000000000000000000000000100000;
+const TransitionLane1 = 0b0000000000000000000000010000000;
+```
+
+**2. 批量更新**
+```js
+// packages/react-reconciler/src/ReactFiberWorkLoop.js
+function scheduleUpdateOnFiber(fiber, lane, eventTime) {
+  // 将更新加入调度队列
+  const root = markUpdateLaneFromFiberToRoot(fiber, lane);
+  if (root !== null) {
+    scheduleCallbackForRoot(root, lane, eventTime);
+  }
+}
+```
+
+## 🎯 事件系统
+
+### Event Delegation 原理
+
+React 使用事件委托机制，将所有事件绑定到 container 节点上：
+
+```mermaid
+graph TD
+    A[用户点击] --> B[DOM 事件]
+    B --> C[React 事件系统]
+    C --> D[事件合成]
+    D --> E[事件分发]
+    E --> F[组件事件处理]
+    
+    subgraph "事件委托"
+        G[container] --> H[所有子元素事件]
+    end
+```
+
+#### 🎯 事件系统实现
+
+**1. 事件绑定**
+```js
+// packages/react-dom-bindings/src/events/DOMPluginEventSystem.js:416
+function listenToAllSupportedEvents(rootContainerElement) {
+  // 为所有支持的事件类型绑定监听器
+  allNativeEvents.forEach(domEventName => {
+    if (!nonDelegatedEvents.has(domEventName)) {
+      listenToNativeEvent(domEventName, false, rootContainerElement);
+    }
+  });
+}
+```
+
+**2. 事件合成**
+```js
+// packages/react-dom-bindings/src/events/SyntheticEvent.js
+function createSyntheticEvent(Interface) {
+  function SyntheticBaseEvent(reactName, reactEventType, targetInst, nativeEvent, nativeEventTarget) {
+    this._reactName = reactName;
+    this._targetInst = targetInst;
+    this.type = reactEventType;
+    this.nativeEvent = nativeEvent;
+    this.target = nativeEventTarget;
+    this.currentTarget = null;
+  }
+  
+  return SyntheticBaseEvent;
+}
+```
+
+## 🎣 Hooks 机制
+
+### Hooks 执行原理
+
+Hooks 通过链表结构维护状态，确保执行顺序：
+
+```mermaid
+graph TD
+    A[Function Component] --> B[useState]
+    A --> C[useEffect]
+    A --> D[useContext]
+    B --> E[Hook 链表]
+    C --> E
+    D --> E
+    
+    subgraph "Hook 结构"
+        E1[hook.memoizedState]
+        E2[hook.baseState]
+        E3[hook.queue]
+        E4[hook.next]
+    end
+```
+
+#### 🎣 useState 实现
+
+```js
+// packages/react-reconciler/src/ReactFiberHooks.js:1920
+function useState(initialState) {
+  const dispatcher = resolveDispatcher();
+  return dispatcher.useState(initialState);
+}
+
+function mountState(initialState) {
+  const hook = mountWorkInProgressHook();
+  if (typeof initialState === 'function') {
+    initialState = initialState();
+  }
+  hook.memoizedState = hook.baseState = initialState;
+  const queue = hook.queue = {
+    pending: null,
+    dispatch: null,
+    lastRenderedReducer: basicStateReducer,
+    lastRenderedState: initialState,
+  };
+  const dispatch = queue.dispatch = dispatchSetState.bind(null, currentlyRenderingFiber, queue);
+  return [hook.memoizedState, dispatch];
+}
+```
+
+## 🔍 调试工具
+
+### 核心调试技巧
+
+#### 1. 追踪 Fiber 节点创建
 ```js
 // 在 FiberNode 构造函数中添加
 console.log(`FiberNode${this._id} create ${TagMap[this.tag]}`, this);
 ```
 
-**2. 监控 workInProgress 变化**
+#### 2. 监控 workInProgress 变化
 ```js
 // 重写 workInProgress 的 setter
 Object.defineProperty(window, "workInProgress", {
@@ -1087,85 +1317,38 @@ Object.defineProperty(window, "workInProgress", {
 });
 ```
 
-**3. 追踪 DOM 操作**
+#### 3. 追踪 DOM 操作
 ```js
 // 在 createInstance 中添加
 console.log('Creating DOM instance:', type, newProps);
 ```
 
-#### 📊 性能优化要点
-
-1. **时间切片**: 通过 `shouldTimeSlice` 控制是否使用并发渲染
-2. **早期退出**: 在 `beginWork` 中检查 props 是否变化，避免不必要的更新
-3. **Key 优化**: 在 `reconcileSingleElement` 中使用 key 复用节点
-4. **副作用标记**: 通过 flags 系统精确控制需要执行的副作用
-
-#### 🚀 常见问题解答
-
-**Q: 为什么需要双缓冲机制？**
-A: 双缓冲可以避免在构建新树时影响当前显示的树，确保用户界面的稳定性。
-
-**Q: 深度优先遍历的优势是什么？**
-A: 深度优先遍历可以优先处理叶子节点，在 `completeWork` 阶段创建 DOM 节点，提高渲染效率。
-
-**Q: 如何理解 flags 系统？**
-A: flags 是一个位掩码系统，用二进制位表示不同的副作用类型，可以高效地进行位运算来检查和处理副作用。
-
-#### 🎯 核心概念解释
-
-**1. 双缓冲机制 (Double Buffering)**
-- **Current Tree**: 当前显示在屏幕上的 Fiber 树
-- **WorkInProgress Tree**: 正在构建的新 Fiber 树
-- **alternate**: 两个树之间的连接，实现快速切换
-
-**2. 深度优先遍历**
+#### 4. 监控状态更新
 ```js
-// 遍历顺序：A → B → D → E → C → F
-//     A
-//    / \
-//   B   C
-//  / \   \
-// D   E   F
-```
-
-**3. 副作用收集**
-- **flags**: 当前节点的副作用标记
-- **subtreeFlags**: 子树中所有副作用的标记
-- **bubbleProperties**: 将子节点的副作用向上冒泡
-
-#### 🔍 调试技巧
-
-**1. 追踪 Fiber 节点创建**
-```js
-// 在 FiberNode 构造函数中添加
-console.log(`FiberNode${this._id} create ${TagMap[this.tag]}`, this);
-```
-
-**2. 监控 workInProgress 变化**
-```js
-// 重写 workInProgress 的 setter
-Object.defineProperty(window, "workInProgress", {
-  set(val) {
-    console.log(`workInProgress set ${TagMap[val?.tag]}`, val);
-    window._workInProgress = val;
+// 拦截 concurrentQueues 的更新
+window.concurrentQueues = new Proxy([], {
+  get(target, prop) {
+    console.log(`Reading concurrentQueues[${prop}]:`, target[prop]);
+    return target[prop];
+  },
+  set(target, prop, value) {
+    console.log(`Setting concurrentQueues[${prop}] =`, value);
+    target[prop] = value;
+    return true;
   }
 });
 ```
 
-**3. 追踪 DOM 操作**
-```js
-// 在 createInstance 中添加
-console.log('Creating DOM instance:', type, newProps);
-```
+## 📊 性能优化
 
-#### 📊 性能优化要点
+### 关键优化策略
 
 1. **时间切片**: 通过 `shouldTimeSlice` 控制是否使用并发渲染
 2. **早期退出**: 在 `beginWork` 中检查 props 是否变化，避免不必要的更新
 3. **Key 优化**: 在 `reconcileSingleElement` 中使用 key 复用节点
 4. **副作用标记**: 通过 flags 系统精确控制需要执行的副作用
 
-#### 🚀 常见问题解答
+### 🚀 常见问题解答
 
 **Q: 为什么需要双缓冲机制？**
 A: 双缓冲可以避免在构建新树时影响当前显示的树，确保用户界面的稳定性。
