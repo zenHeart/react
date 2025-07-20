@@ -451,7 +451,7 @@ fiber.updateQueue = {
 
 ## 核心流程分析
 
-## CreateRoot 流程
+### CreateRoot 流程
 
 调用 [ReactDOM.createRoot(container)](https://react.dev/reference/react-dom/client/createRoot) 返回 root 节点 ，核心逻辑包括
 
@@ -498,9 +498,8 @@ container -right-> fiberNode: __reactContainerxx
 ```
 
 
-## render 流程
 
-### 代码执行
+### render 流程
 
 调用 [`root.render(reactNode`)](https://react.dev/reference/react-dom/client/createRoot#root-render) 渲染组件到 container 中，核心逻辑包括
 
@@ -587,7 +586,7 @@ ReactFiberWorkLoop.js#L3059) 如果一个fiber 树深度遍历完成，会先从
 
 
 
-### 核心说明
+#### 核心说明
 
 1. fiber 树的遍历是基于 workLoopSync循环
 
