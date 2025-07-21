@@ -5,7 +5,7 @@ import App from './App.jsx'
 
 
 const DebugApp = (<Profiler id="App" onRender={(id, phase, actualDuration) => {
-  debugger
+  // debugger
   console.log(`Render ${id} took ${actualDuration}ms`);
 }}>
   <App />

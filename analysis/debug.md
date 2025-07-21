@@ -653,68 +653,6 @@ graph LR
     A2 -.->|alternate| A1
 ```
 
-#### 🎯 Render 流程概览图
-
-```mermaid
-graph TD
-    A[root.render] --> B[scheduleImmediateRootScheduleTask]
-    B --> C[processRootScheduleInMicrotask]
-    C --> D[performWorkOnRoot]
-    D --> E{shouldTimeSlice?}
-    E -->|Yes| F[renderRootConcurrent]
-    E -->|No| G[renderRootSync]
-    F --> H[workLoopConcurrent]
-    G --> I[workLoopSync]
-    H --> J[performUnitOfWork]
-    I --> J
-    J --> K[beginWork]
-    K --> L{workInProgress.tag}
-    L -->|HostRoot| M[updateHostRoot]
-    L -->|FunctionComponent| N[updateFunctionComponent]
-    L -->|HostComponent| O[updateHostComponent]
-    M --> P[reconcileChildren]
-    N --> P
-    O --> P
-    P --> Q[reconcileChildFibers]
-    Q --> R{newChild type}
-    R -->|Single Element| S[reconcileSingleElement]
-    R -->|Array| T[reconcileChildrenArray]
-    R -->|Text| U[reconcileSingleTextNode]
-    S --> V[createFiberFromElement]
-    T --> W[updateSlot + placeChild]
-    U --> X[createFiberFromText]
-    V --> Y[completeUnitOfWork]
-    W --> Y
-    X --> Y
-    Y --> Z[completeWork]
-    Z --> AA[createInstance/appendAllChildren]
-    AA --> BB[finishConcurrentRender]
-    BB --> CC[commitRoot]
-    CC --> DD[commitBeforeMutationEffects]
-    DD --> EE[commitMutationEffects]
-    EE --> FF[commitLayoutEffects]
-    FF --> GG[schedulePassiveEffects]
-```
-
-#### 🔄 双缓冲机制图解
-
-```mermaid
-graph LR
-    subgraph "Current Tree"
-        A1[HostRoot] --> B1[App]
-        B1 --> C1[div]
-        C1 --> D1[Hello World]
-    end
-    
-    subgraph "WorkInProgress Tree"
-        A2[HostRoot] --> B2[App]
-        B2 --> C2[div]
-        C2 --> D2[Hello World]
-    end
-    
-    A1 -.->|alternate| A2
-    A2 -.->|alternate| A1
-```
 
 #### 📋 详细执行步骤
 
@@ -980,9 +918,7 @@ graph LR
 10. rootFiber 对应的 children 生成后
    1. 如果没有子节点，说明任务执行完成，会触发 [completeUnitOfWork](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L3059)
    2. 如果任然有子节点回继续深度遍历，知道生成所有字节点对应的 fiber tree.
-    <!-- TODO:  子节点树是如何生成的，具体步骤？ -->
-11. [completeUnitOfWork](../packages/react-reconciler/src/
-ReactFiberWorkLoop.js#L3059) 如果一个fiber 树深度遍历完成，会先从最内层的 fiber 节点开始触发此流程
+11. [completeUnitOfWork](../packages/react-reconciler/src/ReactFiberWorkLoop.js#L3059) 如果一个fiber 树深度遍历完成，会先从最内层的 fiber 节点开始触发此流程
    ```js
    // packages/react-reconciler/src/ReactFiberWorkLoop.js:3059
    function completeUnitOfWork(unitOfWork) {

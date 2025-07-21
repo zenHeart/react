@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>flushPendingEffects Demo: Data Fetching</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .demo-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .user-card {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            background: #f9f9f9;
+        }
+        .loading {
+            color: #666;
+            font-style: italic;
+        }
+        .error {
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            color: #2e7d32;
+            background: #e8f5e8;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .timeline {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .timeline-item {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #2196f3;
+            padding-left: 10px;
+        }
+        .timeline-item.render { border-left-color: #4caf50; }
+        .timeline-item.dom { border-left-color: #ff9800; }
+        .timeline-item.effect { border-left-color: #9c27b0; }
+        .timeline-item.fetch { border-left-color: #f44336; }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        .user-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .user-info > div {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>flushPendingEffects Demo: Data Fetching</h1>
+    
+    <div class="demo-container">
+        <h2>User Profile Component</h2>
+        <p>This demo shows how <code>flushPendingEffects</code> affects data fetching with <code>useEffect</code>.</p>
+        
+        <div class="timeline" id="timeline">
+            <div class="timeline-item">Timeline will appear here...</div>
+        </div>
+        
+        <button onclick="loadUser(1)">Load User 1</button>
+        <button onclick="loadUser(2)">Load User 2</button>
+        <button onclick="loadUser(3)">Load User 3</button>
+        <button onclick="clearTimeline()">Clear Timeline</button>
+        
+        <div id="userProfile"></div>
+    </div>
+
+    <div class="demo-container">
+        <h3>What's Happening:</h3>
+        <ol>
+            <li><strong>Component Renders</strong> - React renders the component with initial state</li>
+            <li><strong>DOM Updates</strong> - Browser updates the DOM to show loading state</li>
+            <li><strong>flushPendingEffects Runs</strong> - React executes useEffect hooks</li>
+            <li><strong>Data Fetching Starts</strong> - useEffect triggers the API call</li>
+            <li><strong>State Updates</strong> - When data arrives, component re-renders</li>
+        </ol>
+        
+        <h3>Key Points:</h3>
+        <ul>
+            <li>User sees loading state <strong>immediately</strong> after clicking</li>
+            <li>Data fetching happens <strong>after</strong> DOM updates</li>
+            <li>Effects run in the correct order and timing</li>
+            <li>Cleanup functions prevent memory leaks</li>
+        </ul>
+    </div>
+
+    <script>
+        // Simulate React's flushPendingEffects timing
+        let timeline = [];
+        
+        function addTimelineEvent(phase, message) {
+            const timestamp = Date.now();
+            timeline.push({ phase, message, timestamp });
+            updateTimelineDisplay();
+        }
+        
+        function updateTimelineDisplay() {
+            const container = document.getElementById('timeline');
+            container.innerHTML = timeline.map(item => {
+                const time = new Date(item.timestamp).toLocaleTimeString();
+                return `<div class="timeline-item ${item.phase}">[${time}] ${item.message}</div>`;
+            }).join('');
+        }
+        
+        function clearTimeline() {
+            timeline = [];
+            updateTimelineDisplay();
+        }
+        
+        // Simulate React component with useEffect
+        class UserProfile {
+            constructor() {
+                this.state = { user: null, loading: false, error: null };
+                this.effects = [];
+                this.cleanupFunctions = [];
+            }
+            
+            // Simulate useState
+            setState(newState) {
+                this.state = { ...this.state, ...newState };
+                this.render();
+            }
+            
+            // Simulate useEffect
+            useEffect(callback, dependencies) {
+                this.effects.push({ callback, dependencies });
+            }
+            
+            // Simulate component render
+            render() {
+                const { user, loading, error } = this.state;
+                const container = document.getElementById('userProfile');
+                
+                if (loading) {
+                    container.innerHTML = '<div class="loading">Loading user profile...</div>';
+                } else if (error) {
+                    container.innerHTML = `<div class="error">Error: ${error}</div>`;
+                } else if (user) {
+                    container.innerHTML = `
+                        <div class="user-card">
+                            <h3>${user.name}</h3>
+                            <div class="user-info">
+                                <div><strong>Email:</strong> ${user.email}</div>
+                                <div><strong>Role:</strong> ${user.role}</div>
+                                <div><strong>ID:</strong> ${user.id}</div>
+                                <div><strong>Status:</strong> ${user.status}</div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = '<div>No user selected</div>';
+                }
+            }
+            
+            // Simulate flushPendingEffects
+            flushEffects() {
+                addTimelineEvent('effect', 'flushPendingEffects: Starting effect execution');
+                
+                // Run cleanup functions first
+                this.cleanupFunctions.forEach(cleanup => {
+                    if (cleanup) cleanup();
+                });
+                this.cleanupFunctions = [];
+                
+                // Execute effects
+                this.effects.forEach(({ callback, dependencies }) => {
+                    const cleanup = callback();
+                    if (cleanup) {
+                        this.cleanupFunctions.push(cleanup);
+                    }
+                });
+                
+                addTimelineEvent('effect', 'flushPendingEffects: Effects completed');
+            }
+        }
+        
+        let currentUserProfile = null;
+        
+        // Simulate API call
+        async function fetchUser(userId) {
+            addTimelineEvent('fetch', `API: Starting fetch for user ${userId}`);
+            
+            // Simulate network delay
+            await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
+            
+            const users = {
+                1: { id: 1, name: 'John Doe', email: 'john@example.com', role: 'Admin', status: 'Active' },
+                2: { id: 2, name: 'Jane Smith', email: 'jane@example.com', role: 'User', status: 'Active' },
+                3: { id: 3, name: 'Bob Johnson', email: 'bob@example.com', role: 'Moderator', status: 'Inactive' }
+            };
+            
+            const user = users[userId];
+            if (!user) {
+                throw new Error(`User ${userId} not found`);
+            }
+            
+            addTimelineEvent('fetch', `API: Received data for user ${userId}`);
+            return user;
+        }
+        
+        async function loadUser(userId) {
+            // Clear previous timeline
+            timeline = [];
+            updateTimelineDisplay();
+            
+            addTimelineEvent('render', 'React: Component render started');
+            
+            // Create new component instance
+            currentUserProfile = new UserProfile();
+            
+            // Simulate useEffect for data fetching
+            currentUserProfile.useEffect(() => {
+                addTimelineEvent('effect', `useEffect: Starting data fetch for user ${userId}`);
+                
+                let cancelled = false;
+                
+                fetchUser(userId)
+                    .then(user => {
+                        if (!cancelled) {
+                            addTimelineEvent('effect', `useEffect: Setting user data`);
+                            currentUserProfile.setState({ user, loading: false, error: null });
+                        }
+                    })
+                    .catch(error => {
+                        if (!cancelled) {
+                            addTimelineEvent('effect', `useEffect: Setting error state`);
+                            currentUserProfile.setState({ error: error.message, loading: false });
+                        }
+                    });
+                
+                // Return cleanup function
+                return () => {
+                    addTimelineEvent('effect', `useEffect: Cleanup - cancelling fetch`);
+                    cancelled = true;
+                };
+            }, [userId]);
+            
+            // Initial render
+            currentUserProfile.setState({ loading: true, error: null, user: null });
+            addTimelineEvent('render', 'React: Component render completed');
+            
+            // Simulate DOM update
+            addTimelineEvent('dom', 'Browser: DOM updated with loading state');
+            
+            // Simulate flushPendingEffects (happens after DOM update)
+            setTimeout(() => {
+                currentUserProfile.flushEffects();
+            }, 100);
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            addTimelineEvent('render', 'Page: Initial page load');
+        });
+    </script>
+</body>
+</html> 

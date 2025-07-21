@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React Scheduler: Time Slicing Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .demo-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .fiber-tree {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .fiber-node {
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 4px;
+            border-left: 3px solid #2196f3;
+        }
+        .fiber-node.current {
+            background: #e3f2fd;
+            border-left-color: #4caf50;
+        }
+        .fiber-node.completed {
+            background: #e8f5e8;
+            border-left-color: #2e7d32;
+        }
+        .fiber-node.pending {
+            background: #fff3e0;
+            border-left-color: #ff9800;
+        }
+        .timeline {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .timeline-item {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #2196f3;
+            padding-left: 10px;
+        }
+        .timeline-item.render { border-left-color: #4caf50; }
+        .timeline-item.yield { border-left-color: #ff9800; }
+        .timeline-item.resume { border-left-color: #9c27b0; }
+        .timeline-item.commit { border-left-color: #f44336; }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        .status-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 15px 0;
+        }
+        .status-card {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+        }
+        .status-card h4 {
+            margin-top: 0;
+            color: #333;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4caf50, #2196f3);
+            transition: width 0.3s ease;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        .priority-selector {
+            margin: 15px 0;
+        }
+        .priority-selector label {
+            margin-right: 10px;
+        }
+        .priority-selector select {
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <h1>React Scheduler: Time Slicing Demo</h1>
+    
+    <div class="demo-container">
+        <h2>How React Makes Render Phase Stoppable</h2>
+        <p>This demo shows how React's scheduler implements time slicing to make the render phase stoppable and restartable.</p>
+        
+        <div class="controls">
+            <button onclick="startRender()">Start Render</button>
+            <button onclick="pauseRender()">Pause Render</button>
+            <button onclick="resumeRender()">Resume Render</button>
+            <button onclick="clearTimeline()">Clear Timeline</button>
+        </div>
+        
+        <div class="priority-selector">
+            <label>Priority:</label>
+            <select id="prioritySelect" onchange="updatePriority()">
+                <option value="normal">Normal Priority</option>
+                <option value="high">High Priority</option>
+                <option value="low">Low Priority</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="demo-container">
+        <h3>Fiber Tree Status</h3>
+        <div class="status-panel">
+            <div class="status-card">
+                <h4>Current Fiber</h4>
+                <div id="currentFiber">None</div>
+            </div>
+            <div class="status-card">
+                <h4>Render Progress</h4>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+                <div id="progressText">0% Complete</div>
+            </div>
+        </div>
+        
+        <div class="fiber-tree" id="fiberTree">
+            <div class="fiber-node">Root (pending)</div>
+            <div class="fiber-node">App (pending)</div>
+            <div class="fiber-node">Header (pending)</div>
+            <div class="fiber-node">Content (pending)</div>
+            <div class="fiber-node">Footer (pending)</div>
+        </div>
+    </div>
+
+    <div class="demo-container">
+        <h3>Timeline</h3>
+        <div class="timeline" id="timeline">
+            <div class="timeline-item">Timeline will appear here...</div>
+        </div>
+    </div>
+
+    <div class="demo-container">
+        <h3>Key Concepts:</h3>
+        <ol>
+            <li><strong>Time Slicing</strong> - React breaks work into small chunks that can be interrupted</li>
+            <li><strong>shouldYieldToHost()</strong> - Determines when to yield control back to browser</li>
+            <li><strong>Work Loop</strong> - Processes one fiber at a time, checking yield conditions</li>
+            <li><strong>Resume Capability</strong> - Can restart from where it left off</li>
+            <li><strong>Priority Levels</strong> - Different priorities have different time slices</li>
+        </ol>
+        
+        <h3>How It Works:</h3>
+        <ul>
+            <li><strong>Start</strong> - Scheduler begins processing fibers</li>
+            <li><strong>Check Yield</strong> - After each fiber, check if should yield</li>
+            <li><strong>Yield</strong> - If time slice expired, pause and return control</li>
+            <li><strong>Resume</strong> - Later, continue from the same fiber</li>
+            <li><strong>Complete</strong> - When all fibers done, commit changes</li>
+        </ul>
+    </div>
+
+    <script>
+        let timeline = [];
+        let currentFiberIndex = 0;
+        let isRendering = false;
+        let isPaused = false;
+        let currentPriority = 'normal';
+        let timeSlice = 5; // milliseconds per time slice
+        
+        const fibers = [
+            { name: 'Root', type: 'HostRoot', priority: 1 },
+            { name: 'App', type: 'FunctionComponent', priority: 2 },
+            { name: 'Header', type: 'FunctionComponent', priority: 3 },
+            { name: 'Content', type: 'FunctionComponent', priority: 4 },
+            { name: 'Footer', type: 'FunctionComponent', priority: 5 }
+        ];
+        
+        function addTimelineEvent(phase, message) {
+            const timestamp = Date.now();
+            timeline.push({ phase, message, timestamp });
+            updateTimelineDisplay();
+        }
+        
+        function updateTimelineDisplay() {
+            const container = document.getElementById('timeline');
+            container.innerHTML = timeline.map(item => {
+                const time = new Date(item.timestamp).toLocaleTimeString();
+                return `<div class="timeline-item ${item.phase}">[${time}] ${item.message}</div>`;
+            }).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function clearTimeline() {
+            timeline = [];
+            updateTimelineDisplay();
+        }
+        
+        function updatePriority() {
+            const priority = document.getElementById('prioritySelect').value;
+            currentPriority = priority;
+            
+            switch(priority) {
+                case 'high':
+                    timeSlice = 10; // More time for high priority
+                    break;
+                case 'normal':
+                    timeSlice = 5; // Standard time slice
+                    break;
+                case 'low':
+                    timeSlice = 2; // Less time for low priority
+                    break;
+            }
+            
+            addTimelineEvent('render', `Priority changed to ${priority} (time slice: ${timeSlice}ms)`);
+        }
+        
+        function shouldYieldToHost() {
+            // Simulate React's shouldYieldToHost logic
+            const timeElapsed = Date.now() - window.renderStartTime;
+            return timeElapsed >= timeSlice;
+        }
+        
+        function updateFiberTree() {
+            const container = document.getElementById('fiberTree');
+            container.innerHTML = fibers.map((fiber, index) => {
+                let className = 'fiber-node';
+                let status = 'pending';
+                
+                if (index < currentFiberIndex) {
+                    className += ' completed';
+                    status = 'completed';
+                } else if (index === currentFiberIndex && isRendering) {
+                    className += ' current';
+                    status = 'current';
+                }
+                
+                return `<div class="${className}">${fiber.name} (${fiber.type}) - ${status}</div>`;
+            }).join('');
+            
+            // Update current fiber display
+            if (currentFiberIndex < fibers.length) {
+                document.getElementById('currentFiber').textContent = fibers[currentFiberIndex].name;
+            } else {
+                document.getElementById('currentFiber').textContent = 'None';
+            }
+            
+            // Update progress
+            const progress = (currentFiberIndex / fibers.length) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+            document.getElementById('progressText').textContent = Math.round(progress) + '% Complete';
+        }
+        
+        async function processFiber(fiberIndex) {
+            if (fiberIndex >= fibers.length) {
+                return true; // Complete
+            }
+            
+            const fiber = fibers[fiberIndex];
+            currentFiberIndex = fiberIndex;
+            updateFiberTree();
+            
+            addTimelineEvent('render', `Processing fiber: ${fiber.name} (${fiber.type})`);
+            
+            // Simulate work on this fiber
+            const workTime = 100 + Math.random() * 200; // 100-300ms of work
+            await new Promise(resolve => setTimeout(resolve, workTime));
+            
+            addTimelineEvent('render', `Completed fiber: ${fiber.name}`);
+            
+            // Check if we should yield
+            if (shouldYieldToHost()) {
+                addTimelineEvent('yield', `Time slice expired (${timeSlice}ms), yielding to host`);
+                return false; // Yield
+            }
+            
+            return processFiber(fiberIndex + 1); // Continue to next fiber
+        }
+        
+        async function startRender() {
+            if (isRendering) return;
+            
+            isRendering = true;
+            isPaused = false;
+            currentFiberIndex = 0;
+            window.renderStartTime = Date.now();
+            
+            addTimelineEvent('render', `Starting render with ${currentPriority} priority`);
+            updateFiberTree();
+            
+            while (isRendering && !isPaused && currentFiberIndex < fibers.length) {
+                const shouldContinue = await processFiber(currentFiberIndex);
+                
+                if (!shouldContinue) {
+                    // Yielded - wait a bit then resume
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                    if (!isPaused) {
+                        addTimelineEvent('resume', 'Resuming from yield');
+                        window.renderStartTime = Date.now(); // Reset timer
+                    }
+                } else if (currentFiberIndex >= fibers.length) {
+                    // Completed
+                    addTimelineEvent('commit', 'Render completed, committing to DOM');
+                    isRendering = false;
+                    break;
+                }
+            }
+            
+            if (isPaused) {
+                addTimelineEvent('render', 'Render paused');
+            }
+        }
+        
+        function pauseRender() {
+            isPaused = true;
+            addTimelineEvent('render', 'Render paused by user');
+        }
+        
+        function resumeRender() {
+            if (!isRendering || !isPaused) return;
+            
+            isPaused = false;
+            window.renderStartTime = Date.now();
+            addTimelineEvent('resume', 'Render resumed by user');
+            startRender();
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            addTimelineEvent('render', 'Page loaded');
+            updateFiberTree();
+        });
+    </script>
+</body>
+</html> 

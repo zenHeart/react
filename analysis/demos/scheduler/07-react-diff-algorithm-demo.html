@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React Diff Algorithm Visualization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .demo-section {
+            margin-bottom: 40px;
+            padding: 25px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+
+        .demo-section h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .diff-visualization {
+            display: flex;
+            justify-content: space-between;
+            margin: 30px 0;
+            gap: 20px;
+        }
+
+        .tree-container {
+            flex: 1;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            border: 2px solid #e1e5e9;
+        }
+
+        .tree-container h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .fiber-node {
+            display: inline-block;
+            padding: 8px 12px;
+            margin: 5px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 0.9em;
+            text-align: center;
+            min-width: 60px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .fiber-node.before {
+            background: #e3f2fd;
+            border: 2px solid #2196f3;
+            color: #1976d2;
+        }
+
+        .fiber-node.after {
+            background: #f3e5f5;
+            border: 2px solid #9c27b0;
+            color: #7b1fa2;
+        }
+
+        .fiber-node.reused {
+            background: #e8f5e8;
+            border: 2px solid #4caf50;
+            color: #2e7d32;
+            animation: pulse 2s infinite;
+        }
+
+        .fiber-node.created {
+            background: #fff3e0;
+            border: 2px solid #ff9800;
+            color: #f57c00;
+            animation: slideIn 0.5s ease;
+        }
+
+        .fiber-node.deleted {
+            background: #ffebee;
+            border: 2px solid #f44336;
+            color: #d32f2f;
+            opacity: 0.5;
+            text-decoration: line-through;
+        }
+
+        .fiber-node.moved {
+            background: #fff8e1;
+            border: 2px solid #ffc107;
+            color: #f57f17;
+            animation: bounce 0.6s ease;
+        }
+
+        .fiber-connection {
+            height: 2px;
+            background: #bdbdbd;
+            margin: 10px 0;
+            position: relative;
+        }
+
+        .fiber-connection::after {
+            content: '→';
+            position: absolute;
+            right: -10px;
+            top: -8px;
+            color: #bdbdbd;
+            font-weight: bold;
+        }
+
+        .diff-steps {
+            flex: 1;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            border: 2px solid #e1e5e9;
+        }
+
+        .diff-steps h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+            transition: all 0.3s ease;
+        }
+
+        .step.active {
+            background: #e8f5e8;
+            border-left-color: #27ae60;
+            transform: translateX(10px);
+        }
+
+        .step.completed {
+            background: #f0f8ff;
+            border-left-color: #3498db;
+            opacity: 0.7;
+        }
+
+        .step-number {
+            background: #3498db;
+            color: white;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            font-size: 0.8em;
+        }
+
+        .step-number.active {
+            background: #27ae60;
+        }
+
+        .step-number.completed {
+            background: #95a5a6;
+        }
+
+        .step-description {
+            flex: 1;
+            color: #2c3e50;
+            font-size: 0.9em;
+        }
+
+        .step-fiber {
+            font-weight: bold;
+            color: #e74c3c;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #3498db;
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn.primary {
+            background: #27ae60;
+        }
+
+        .btn.warning {
+            background: #f39c12;
+        }
+
+        .btn.danger {
+            background: #e74c3c;
+        }
+
+        .scenario-selector {
+            margin: 20px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            border: 2px solid #e1e5e9;
+        }
+
+        .scenario-selector h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .scenario-option {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .scenario-option:hover {
+            background: #e8f5e8;
+            border-color: #27ae60;
+        }
+
+        .scenario-option.selected {
+            background: #e8f5e8;
+            border-color: #27ae60;
+        }
+
+        .scenario-option input[type="radio"] {
+            margin-right: 10px;
+        }
+
+        .scenario-description {
+            flex: 1;
+            color: #2c3e50;
+        }
+
+        .scenario-complexity {
+            font-size: 0.8em;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+
+        .performance-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #e1e5e9;
+            text-align: center;
+        }
+
+        .metric-card h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .metric-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #27ae60;
+        }
+
+        .metric-label {
+            font-size: 0.8em;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+
+        .algorithm-details {
+            margin: 20px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            border: 2px solid #e1e5e9;
+        }
+
+        .algorithm-details h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .phase-indicator {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            border: 2px solid #e1e5e9;
+        }
+
+        .phase {
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .phase.active {
+            background: #27ae60;
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .phase.completed {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .phase.pending {
+            background: #ecf0f1;
+            color: #7f8c8d;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(-20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        .key-visualization {
+            margin: 20px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            border: 2px solid #e1e5e9;
+        }
+
+        .key-visualization h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .key-example {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .key-example .before {
+            flex: 1;
+            text-align: center;
+        }
+
+        .key-example .arrow {
+            margin: 0 20px;
+            font-size: 1.5em;
+            color: #3498db;
+        }
+
+        .key-example .after {
+            flex: 1;
+            text-align: center;
+        }
+
+        .key-item {
+            display: inline-block;
+            padding: 5px 10px;
+            margin: 2px;
+            border-radius: 5px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .key-item.stable {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            color: #2e7d32;
+        }
+
+        .key-item.moved {
+            background: #fff3e0;
+            border: 1px solid #ff9800;
+            color: #f57c00;
+        }
+
+        .key-item.new {
+            background: #fff8e1;
+            border: 1px solid #ffc107;
+            color: #f57f17;
+        }
+
+        .key-item.deleted {
+            background: #ffebee;
+            border: 1px solid #f44336;
+            color: #d32f2f;
+            text-decoration: line-through;
+            opacity: 0.5;
+        }
+
+        @media (max-width: 768px) {
+            .diff-visualization {
+                flex-direction: column;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            .performance-metrics {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>React Diff Algorithm Visualization</h1>
+            <p>Interactive demonstration of React's reconciliation strategies</p>
+        </div>
+
+        <div class="content">
+            <div class="demo-section">
+                <h2>Diff Algorithm Scenarios</h2>
+                
+                <div class="scenario-selector">
+                    <h3>Select a Scenario:</h3>
+                    <div class="scenario-option" data-scenario="simple">
+                        <input type="radio" name="scenario" value="simple" id="simple">
+                        <div class="scenario-description">
+                            <label for="simple"><strong>Simple Addition</strong></label>
+                            <div class="scenario-complexity">Add one element to the end</div>
+                        </div>
+                    </div>
+                    <div class="scenario-option" data-scenario="reorder">
+                        <input type="radio" name="scenario" value="reorder" id="reorder">
+                        <div class="scenario-description">
+                            <label for="reorder"><strong>Key-Based Reordering</strong></label>
+                            <div class="scenario-complexity">Reorder elements with stable keys</div>
+                        </div>
+                    </div>
+                    <div class="scenario-option" data-scenario="complex">
+                        <input type="radio" name="scenario" value="complex" id="complex">
+                        <div class="scenario-description">
+                            <label for="complex"><strong>Complex Reordering</strong></label>
+                            <div class="scenario-complexity">Multiple moves, additions, and deletions</div>
+                        </div>
+                    </div>
+                    <div class="scenario-option" data-scenario="no-keys">
+                        <input type="radio" name="scenario" value="no-keys" id="no-keys">
+                        <div class="scenario-description">
+                            <label for="no-keys"><strong>No Keys (Poor Performance)</strong></label>
+                            <div class="scenario-complexity">Demonstrates why keys are important</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="key-visualization">
+                    <h3>Key-Based Reconciliation</h3>
+                    <div class="key-example">
+                        <div class="before">
+                            <div class="key-item stable" data-key="A">A</div>
+                            <div class="key-item stable" data-key="B">B</div>
+                            <div class="key-item stable" data-key="C">C</div>
+                        </div>
+                        <div class="arrow">→</div>
+                        <div class="after">
+                            <div class="key-item stable" data-key="A">A</div>
+                            <div class="key-item moved" data-key="C">C</div>
+                            <div class="key-item new" data-key="D">D</div>
+                            <div class="key-item stable" data-key="B">B</div>
+                        </div>
+                    </div>
+                    <p><strong>Explanation:</strong> With proper keys, React can identify that A and B are stable, C moved, and D is new. Without keys, all elements would be recreated.</p>
+                </div>
+            </div>
+
+            <div class="demo-section">
+                <h2>Diff Visualization</h2>
+                
+                <div class="diff-visualization">
+                    <div class="tree-container">
+                        <h3>Before</h3>
+                        <div id="beforeTree">
+                            <!-- Before tree will be created dynamically -->
+                        </div>
+                    </div>
+                    
+                    <div class="tree-container">
+                        <h3>After</h3>
+                        <div id="afterTree">
+                            <!-- After tree will be created dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="phase-indicator">
+                    <div class="phase pending" id="phase1">Phase 1: First Pass</div>
+                    <div class="phase pending" id="phase2">Phase 2: Map Creation</div>
+                    <div class="phase pending" id="phase3">Phase 3: Map Lookup</div>
+                </div>
+            </div>
+
+            <div class="demo-section">
+                <h2>Reconciliation Steps</h2>
+                <div class="diff-steps" id="diffSteps">
+                    <!-- Diff steps will be created dynamically -->
+                </div>
+            </div>
+
+            <div class="demo-section">
+                <h2>Performance Metrics</h2>
+                <div class="performance-metrics">
+                    <div class="metric-card">
+                        <h4>Operations</h4>
+                        <div class="metric-value" id="operationsCount">0</div>
+                        <div class="metric-label">DOM operations</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Reused Nodes</h4>
+                        <div class="metric-value" id="reusedCount">0</div>
+                        <div class="metric-label">Fiber nodes reused</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Created Nodes</h4>
+                        <div class="metric-value" id="createdCount">0</div>
+                        <div class="metric-label">New fiber nodes</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Deleted Nodes</h4>
+                        <div class="metric-value" id="deletedCount">0</div>
+                        <div class="metric-label">Removed fiber nodes</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="demo-section">
+                <h2>Algorithm Details</h2>
+                <div class="algorithm-details">
+                    <h3>Two-Phase Reconciliation</h3>
+                    <p><strong>Phase 1:</strong> Traverse both lists simultaneously, trying to match nodes by key and type. Stop when a mismatch is found.</p>
+                    <p><strong>Phase 2:</strong> Create a Map of remaining old children for O(1) lookups.</p>
+                    <p><strong>Phase 3:</strong> Process remaining new children using the Map to find matches.</p>
+                    
+                    <h3>Key Benefits</h3>
+                    <ul>
+                        <li><strong>O(n) average case</strong> - Most common scenarios are optimized</li>
+                        <li><strong>Key-based matching</strong> - Identifies stable elements across renders</li>
+                        <li><strong>Minimal DOM operations</strong> - Only necessary changes are applied</li>
+                        <li><strong>Early termination</strong> - Stops processing when no match found</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="btn primary" id="startBtn">Start Diff</button>
+                <button class="btn warning" id="stepBtn" disabled>Step Through</button>
+                <button class="btn danger" id="resetBtn">Reset</button>
+                <button class="btn" id="autoBtn">Auto Play</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Diff scenarios
+        const scenarios = {
+            simple: {
+                name: "Simple Addition",
+                before: ['A', 'B', 'C'],
+                after: ['A', 'B', 'C', 'D'],
+                description: "Add one element to the end - optimal case"
+            },
+            reorder: {
+                name: "Key-Based Reordering",
+                before: ['A', 'B', 'C', 'D'],
+                after: ['C', 'A', 'D', 'B'],
+                description: "Reorder with stable keys - good performance"
+            },
+            complex: {
+                name: "Complex Reordering",
+                before: ['A', 'B', 'C', 'D', 'E'],
+                after: ['C', 'F', 'A', 'B', 'G'],
+                description: "Multiple operations - tests Map fallback"
+            },
+            'no-keys': {
+                name: "No Keys (Poor Performance)",
+                before: ['A', 'B', 'C'],
+                after: ['C', 'A', 'B'],
+                description: "Demonstrates why keys are important"
+            }
+        };
+
+        // Diff steps for each scenario
+        const diffSteps = {
+            simple: [
+                { step: 1, description: "Compare A-A (match)", fiber: "A", action: "reuse" },
+                { step: 2, description: "Compare B-B (match)", fiber: "B", action: "reuse" },
+                { step: 3, description: "Compare C-C (match)", fiber: "C", action: "reuse" },
+                { step: 4, description: "Create new fiber for D", fiber: "D", action: "create" }
+            ],
+            reorder: [
+                { step: 1, description: "Compare A-C (different)", fiber: "A", action: "break" },
+                { step: 2, description: "Create Map of remaining children", fiber: "All", action: "map" },
+                { step: 3, description: "Find C in Map, move to front", fiber: "C", action: "move" },
+                { step: 4, description: "Find A in Map, move to position 1", fiber: "A", action: "move" },
+                { step: 5, description: "Find D in Map, move to position 2", fiber: "D", action: "move" },
+                { step: 6, description: "Find B in Map, move to position 3", fiber: "B", action: "move" }
+            ],
+            complex: [
+                { step: 1, description: "Compare A-C (different)", fiber: "A", action: "break" },
+                { step: 2, description: "Create Map of remaining children", fiber: "All", action: "map" },
+                { step: 3, description: "Find C in Map, move to front", fiber: "C", action: "move" },
+                { step: 4, description: "Create new fiber for F", fiber: "F", action: "create" },
+                { step: 5, description: "Find A in Map, move to position 2", fiber: "A", action: "move" },
+                { step: 6, description: "Find B in Map, move to position 3", fiber: "B", action: "move" },
+                { step: 7, description: "Create new fiber for G", fiber: "G", action: "create" },
+                { step: 8, description: "Delete unused fibers D, E", fiber: "D,E", action: "delete" }
+            ],
+            'no-keys': [
+                { step: 1, description: "Compare A-C (different types)", fiber: "A", action: "break" },
+                { step: 2, description: "Create new fiber for C", fiber: "C", action: "create" },
+                { step: 3, description: "Create new fiber for A", fiber: "A", action: "create" },
+                { step: 4, description: "Create new fiber for B", fiber: "B", action: "create" },
+                { step: 5, description: "Delete old fibers A, B, C", fiber: "A,B,C", action: "delete" }
+            ]
+        };
+
+        class DiffAlgorithmDemo {
+            constructor() {
+                this.currentScenario = 'simple';
+                this.currentStep = 0;
+                this.isAutoPlaying = false;
+                this.autoPlayInterval = null;
+                
+                this.initializeDemo();
+                this.setupEventListeners();
+            }
+
+            initializeDemo() {
+                this.updateScenario('simple');
+                this.createDiffSteps();
+            }
+
+            setupEventListeners() {
+                document.getElementById('startBtn').addEventListener('click', () => this.startDiff());
+                document.getElementById('stepBtn').addEventListener('click', () => this.nextStep());
+                document.getElementById('resetBtn').addEventListener('click', () => this.reset());
+                document.getElementById('autoBtn').addEventListener('click', () => this.toggleAutoPlay());
+
+                // Scenario selection
+                document.querySelectorAll('.scenario-option').forEach(option => {
+                    option.addEventListener('click', () => {
+                        const scenario = option.dataset.scenario;
+                        this.updateScenario(scenario);
+                    });
+                });
+            }
+
+            updateScenario(scenario) {
+                this.currentScenario = scenario;
+                this.currentStep = 0;
+                
+                // Update scenario selection
+                document.querySelectorAll('.scenario-option').forEach(option => {
+                    option.classList.remove('selected');
+                    if (option.dataset.scenario === scenario) {
+                        option.classList.add('selected');
+                        option.querySelector('input').checked = true;
+                    }
+                });
+                
+                // Update trees
+                this.createTrees();
+                this.createDiffSteps();
+                this.updateMetrics();
+            }
+
+            createTrees() {
+                const scenario = scenarios[this.currentScenario];
+                const beforeTree = document.getElementById('beforeTree');
+                const afterTree = document.getElementById('afterTree');
+                
+                beforeTree.innerHTML = '';
+                afterTree.innerHTML = '';
+                
+                // Create before tree
+                scenario.before.forEach((item, index) => {
+                    const node = document.createElement('div');
+                    node.className = 'fiber-node before';
+                    node.textContent = item;
+                    node.dataset.key = item;
+                    beforeTree.appendChild(node);
+                    
+                    if (index < scenario.before.length - 1) {
+                        const connection = document.createElement('div');
+                        connection.className = 'fiber-connection';
+                        beforeTree.appendChild(connection);
+                    }
+                });
+                
+                // Create after tree
+                scenario.after.forEach((item, index) => {
+                    const node = document.createElement('div');
+                    node.className = 'fiber-node after';
+                    node.textContent = item;
+                    node.dataset.key = item;
+                    afterTree.appendChild(node);
+                    
+                    if (index < scenario.after.length - 1) {
+                        const connection = document.createElement('div');
+                        connection.className = 'fiber-connection';
+                        afterTree.appendChild(connection);
+                    }
+                });
+            }
+
+            createDiffSteps() {
+                const stepsContainer = document.getElementById('diffSteps');
+                stepsContainer.innerHTML = '';
+                
+                const steps = diffSteps[this.currentScenario];
+                steps.forEach((step, index) => {
+                    const stepElement = document.createElement('div');
+                    stepElement.className = 'step';
+                    stepElement.id = `step-${index}`;
+                    
+                    stepElement.innerHTML = `
+                        <div class="step-number">${step.step}</div>
+                        <div class="step-description">
+                            ${step.description}
+                            <span class="step-fiber">(${step.fiber})</span>
+                        </div>
+                    `;
+                    
+                    stepsContainer.appendChild(stepElement);
+                });
+            }
+
+            startDiff() {
+                this.currentStep = 0;
+                this.updatePhase(1);
+                this.highlightCurrentStep();
+                document.getElementById('stepBtn').disabled = false;
+                document.getElementById('startBtn').disabled = true;
+            }
+
+            nextStep() {
+                const steps = diffSteps[this.currentScenario];
+                if (this.currentStep >= steps.length) {
+                    this.completeDiff();
+                    return;
+                }
+
+                const step = steps[this.currentStep];
+                this.processStep(step);
+                this.currentStep++;
+                this.highlightCurrentStep();
+                this.updateMetrics();
+            }
+
+            processStep(step) {
+                const scenario = scenarios[this.currentScenario];
+                
+                // Update tree nodes based on action
+                switch (step.action) {
+                    case 'reuse':
+                        this.highlightReusedNode(step.fiber);
+                        break;
+                    case 'create':
+                        this.highlightCreatedNode(step.fiber);
+                        break;
+                    case 'move':
+                        this.highlightMovedNode(step.fiber);
+                        break;
+                    case 'delete':
+                        this.highlightDeletedNodes(step.fiber);
+                        break;
+                    case 'break':
+                        this.highlightBreakPoint();
+                        break;
+                    case 'map':
+                        this.highlightMapCreation();
+                        break;
+                }
+                
+                // Update step
+                const stepElement = document.getElementById(`step-${this.currentStep}`);
+                stepElement.classList.add('active');
+                
+                setTimeout(() => {
+                    stepElement.classList.remove('active');
+                    stepElement.classList.add('completed');
+                }, 1000);
+            }
+
+            highlightReusedNode(key) {
+                const beforeNode = document.querySelector(`[data-key="${key}"].before`);
+                const afterNode = document.querySelector(`[data-key="${key}"].after`);
+                
+                if (beforeNode && afterNode) {
+                    beforeNode.classList.add('reused');
+                    afterNode.classList.add('reused');
+                }
+            }
+
+            highlightCreatedNode(key) {
+                const afterNode = document.querySelector(`[data-key="${key}"].after`);
+                if (afterNode) {
+                    afterNode.classList.add('created');
+                }
+            }
+
+            highlightMovedNode(key) {
+                const afterNode = document.querySelector(`[data-key="${key}"].after`);
+                if (afterNode) {
+                    afterNode.classList.add('moved');
+                }
+            }
+
+            highlightDeletedNodes(keys) {
+                const keyArray = keys.split(',');
+                keyArray.forEach(key => {
+                    const beforeNode = document.querySelector(`[data-key="${key}"].before`);
+                    if (beforeNode) {
+                        beforeNode.classList.add('deleted');
+                    }
+                });
+            }
+
+            highlightBreakPoint() {
+                // Highlight the point where the first pass breaks
+                const beforeNodes = document.querySelectorAll('.before');
+                beforeNodes.forEach(node => {
+                    node.style.opacity = '0.5';
+                });
+            }
+
+            highlightMapCreation() {
+                // Visual indication of Map creation
+                const beforeNodes = document.querySelectorAll('.before');
+                beforeNodes.forEach(node => {
+                    node.style.borderStyle = 'dashed';
+                });
+            }
+
+            highlightCurrentStep() {
+                // Update diff steps
+                document.querySelectorAll('.step').forEach((step, index) => {
+                    step.classList.remove('active');
+                    if (index === this.currentStep) {
+                        step.classList.add('active');
+                    }
+                });
+            }
+
+            updatePhase(phase) {
+                document.querySelectorAll('.phase').forEach((p, index) => {
+                    p.classList.remove('active', 'completed');
+                    if (index + 1 < phase) {
+                        p.classList.add('completed');
+                    } else if (index + 1 === phase) {
+                        p.classList.add('active');
+                    } else {
+                        p.classList.add('pending');
+                    }
+                });
+            }
+
+            completeDiff() {
+                this.updatePhase(3);
+                this.updateMetrics();
+            }
+
+            updateMetrics() {
+                const scenario = scenarios[this.currentScenario];
+                const steps = diffSteps[this.currentScenario];
+                
+                let operations = 0;
+                let reused = 0;
+                let created = 0;
+                let deleted = 0;
+                
+                steps.slice(0, this.currentStep + 1).forEach(step => {
+                    switch (step.action) {
+                        case 'reuse':
+                            reused++;
+                            break;
+                        case 'create':
+                            created++;
+                            operations++;
+                            break;
+                        case 'move':
+                            operations++;
+                            break;
+                        case 'delete':
+                            const deleteCount = step.fiber.split(',').length;
+                            deleted += deleteCount;
+                            operations += deleteCount;
+                            break;
+                    }
+                });
+                
+                document.getElementById('operationsCount').textContent = operations;
+                document.getElementById('reusedCount').textContent = reused;
+                document.getElementById('createdCount').textContent = created;
+                document.getElementById('deletedCount').textContent = deleted;
+            }
+
+            toggleAutoPlay() {
+                if (this.isAutoPlaying) {
+                    this.stopAutoPlay();
+                } else {
+                    this.startAutoPlay();
+                }
+            }
+
+            startAutoPlay() {
+                this.isAutoPlaying = true;
+                document.getElementById('autoBtn').textContent = 'Stop Auto Play';
+                this.autoPlayInterval = setInterval(() => {
+                    const steps = diffSteps[this.currentScenario];
+                    if (this.currentStep < steps.length) {
+                        this.nextStep();
+                    } else {
+                        this.stopAutoPlay();
+                    }
+                }, 1500);
+            }
+
+            stopAutoPlay() {
+                this.isAutoPlaying = false;
+                document.getElementById('autoBtn').textContent = 'Auto Play';
+                if (this.autoPlayInterval) {
+                    clearInterval(this.autoPlayInterval);
+                    this.autoPlayInterval = null;
+                }
+            }
+
+            reset() {
+                this.currentStep = 0;
+                this.stopAutoPlay();
+                
+                // Reset tree nodes
+                document.querySelectorAll('.fiber-node').forEach(node => {
+                    node.className = node.className.replace(/ reused| created| moved| deleted/g, '');
+                    node.style.opacity = '';
+                    node.style.borderStyle = '';
+                });
+                
+                // Reset steps
+                document.querySelectorAll('.step').forEach(step => {
+                    step.classList.remove('active', 'completed');
+                });
+                
+                // Reset phases
+                document.querySelectorAll('.phase').forEach(p => {
+                    p.classList.remove('active', 'completed');
+                    p.classList.add('pending');
+                });
+                
+                // Reset metrics
+                this.updateMetrics();
+                
+                // Reset buttons
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stepBtn').disabled = true;
+                document.getElementById('autoBtn').textContent = 'Auto Play';
+            }
+        }
+
+        // Initialize the demo when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new DiffAlgorithmDemo();
+        });
+    </script>
+</body>
+</html> 

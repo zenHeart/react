@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>flushPendingEffects Demo: DOM Manipulation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            min-height: 200vh; /* Make page scrollable */
+        }
+        .demo-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+        .close-btn:hover {
+            color: #000;
+        }
+        .timeline {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .timeline-item {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #2196f3;
+            padding-left: 10px;
+        }
+        .timeline-item.render { border-left-color: #4caf50; }
+        .timeline-item.dom { border-left-color: #ff9800; }
+        .timeline-item.effect { border-left-color: #9c27b0; }
+        .timeline-item.scroll { border-left-color: #f44336; }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        .scroll-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .body-overflow-hidden {
+            overflow: hidden !important;
+        }
+        .demo-section {
+            margin: 40px 0;
+            padding: 20px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+        .demo-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .status-indicator {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .status-indicator.active {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+        .status-indicator.inactive {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <div class="scroll-indicator" id="scrollIndicator">
+        Scroll Y: <span id="scrollY">0</span>px
+    </div>
+
+    <div class="demo-container">
+        <h1>flushPendingEffects Demo: DOM Manipulation</h1>
+        <p>This demo shows how <code>flushPendingEffects</code> affects DOM manipulation with <code>useEffect</code>.</p>
+        
+        <div class="timeline" id="timeline">
+            <div class="timeline-item">Timeline will appear here...</div>
+        </div>
+        
+        <button onclick="openModal()">Open Modal</button>
+        <button onclick="closeModal()">Close Modal</button>
+        <button onclick="clearTimeline()">Clear Timeline</button>
+    </div>
+
+    <div class="demo-section">
+        <h3>Modal Component</h3>
+        <p>When you open the modal, notice how the background scroll is disabled. This happens because of <code>useEffect</code> running during <code>flushPendingEffects</code>.</p>
+        
+        <div id="modalStatus" class="status-indicator inactive">
+            Modal Status: Closed
+        </div>
+        
+        <div id="scrollStatus" class="status-indicator inactive">
+            Body Overflow: Auto
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h3>Scroll Test</h3>
+        <p>Try scrolling this page. When the modal is open, scrolling should be disabled. This demonstrates how DOM manipulation in effects affects user experience.</p>
+        
+        <div style="height: 100px; background: linear-gradient(45deg, #f0f0f0, #e0e0e0); padding: 20px; border-radius: 4px;">
+            <p>This is a scrollable section. When the modal opens, you won't be able to scroll this content.</p>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h3>What's Happening:</h3>
+        <ol>
+            <li><strong>Modal Component Renders</strong> - React renders the modal component</li>
+            <li><strong>DOM Updates</strong> - Browser adds modal to DOM</li>
+            <li><strong>flushPendingEffects Runs</strong> - React executes useEffect</li>
+            <li><strong>DOM Manipulation</strong> - useEffect sets <code>overflow: hidden</code></li>
+            <li><strong>User Experience</strong> - Background scroll is disabled</li>
+        </ol>
+        
+        <h3>Key Points:</h3>
+        <ul>
+            <li>DOM manipulation happens <strong>after</strong> the modal is visible</li>
+            <li>Effects can modify the DOM safely after React's updates</li>
+            <li>Cleanup functions restore the original state</li>
+            <li>User sees immediate visual feedback, then behavior changes</li>
+        </ul>
+    </div>
+
+    <div id="modal" style="display: none;"></div>
+
+    <script>
+        let timeline = [];
+        let modalComponent = null;
+        
+        function addTimelineEvent(phase, message) {
+            const timestamp = Date.now();
+            timeline.push({ phase, message, timestamp });
+            updateTimelineDisplay();
+        }
+        
+        function updateTimelineDisplay() {
+            const container = document.getElementById('timeline');
+            container.innerHTML = timeline.map(item => {
+                const time = new Date(item.timestamp).toLocaleTimeString();
+                return `<div class="timeline-item ${item.phase}">[${time}] ${item.message}</div>`;
+            }).join('');
+        }
+        
+        function clearTimeline() {
+            timeline = [];
+            updateTimelineDisplay();
+        }
+        
+        // Simulate React component with useEffect
+        class ModalComponent {
+            constructor() {
+                this.state = { isOpen: false };
+                this.effects = [];
+                this.cleanupFunctions = [];
+                this.originalOverflow = null;
+            }
+            
+            setState(newState) {
+                this.state = { ...this.state, ...newState };
+                this.render();
+            }
+            
+            useEffect(callback, dependencies) {
+                this.effects.push({ callback, dependencies });
+            }
+            
+            render() {
+                const { isOpen } = this.state;
+                const modal = document.getElementById('modal');
+                const status = document.getElementById('modalStatus');
+                const scrollStatus = document.getElementById('scrollStatus');
+                
+                if (isOpen) {
+                    modal.innerHTML = `
+                        <div class="modal">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h2>Modal Dialog</h2>
+                                    <button class="close-btn" onclick="closeModal()">&times;</button>
+                                </div>
+                                <p>This modal demonstrates how <code>useEffect</code> affects DOM manipulation.</p>
+                                <p>Notice that the background scroll is disabled. This happens because:</p>
+                                <ol>
+                                    <li>Modal renders and becomes visible</li>
+                                    <li><code>flushPendingEffects</code> runs</li>
+                                    <li><code>useEffect</code> executes and sets <code>overflow: hidden</code></li>
+                                </ol>
+                                <button onclick="closeModal()">Close Modal</button>
+                            </div>
+                        </div>
+                    `;
+                    modal.style.display = 'block';
+                    status.textContent = 'Modal Status: Open';
+                    status.className = 'status-indicator active';
+                } else {
+                    modal.style.display = 'none';
+                    status.textContent = 'Modal Status: Closed';
+                    status.className = 'status-indicator inactive';
+                }
+                
+                // Update scroll status
+                const bodyOverflow = getComputedStyle(document.body).overflow;
+                scrollStatus.textContent = `Body Overflow: ${bodyOverflow}`;
+                scrollStatus.className = bodyOverflow === 'hidden' ? 'status-indicator active' : 'status-indicator inactive';
+            }
+            
+            flushEffects() {
+                addTimelineEvent('effect', 'flushPendingEffects: Starting effect execution');
+                
+                // Run cleanup functions first
+                this.cleanupFunctions.forEach(cleanup => {
+                    if (cleanup) cleanup();
+                });
+                this.cleanupFunctions = [];
+                
+                // Execute effects
+                this.effects.forEach(({ callback, dependencies }) => {
+                    const cleanup = callback();
+                    if (cleanup) {
+                        this.cleanupFunctions.push(cleanup);
+                    }
+                });
+                
+                addTimelineEvent('effect', 'flushPendingEffects: Effects completed');
+            }
+        }
+        
+        function openModal() {
+            // Clear timeline
+            timeline = [];
+            updateTimelineDisplay();
+            
+            addTimelineEvent('render', 'React: Modal component render started');
+            
+            // Create modal component
+            modalComponent = new ModalComponent();
+            
+            // Simulate useEffect for DOM manipulation
+            modalComponent.useEffect(() => {
+                const { isOpen } = modalComponent.state;
+                
+                if (isOpen) {
+                    addTimelineEvent('effect', 'useEffect: Modal opened - manipulating DOM');
+                    
+                    // Store original overflow
+                    modalComponent.originalOverflow = document.body.style.overflow;
+                    
+                    // Set body overflow to hidden
+                    document.body.style.overflow = 'hidden';
+                    addTimelineEvent('scroll', 'DOM: Set body overflow to hidden');
+                    
+                    // Return cleanup function
+                    return () => {
+                        addTimelineEvent('effect', 'useEffect: Cleanup - restoring body overflow');
+                        document.body.style.overflow = modalComponent.originalOverflow;
+                        addTimelineEvent('scroll', 'DOM: Restored body overflow');
+                    };
+                }
+            }, [modalComponent.state.isOpen]);
+            
+            // Set modal to open
+            modalComponent.setState({ isOpen: true });
+            addTimelineEvent('render', 'React: Modal component render completed');
+            
+            // Simulate DOM update
+            addTimelineEvent('dom', 'Browser: DOM updated with modal');
+            
+            // Simulate flushPendingEffects (happens after DOM update)
+            setTimeout(() => {
+                modalComponent.flushEffects();
+            }, 100);
+        }
+        
+        function closeModal() {
+            if (!modalComponent) return;
+            
+            addTimelineEvent('render', 'React: Modal component render started');
+            
+            // Set modal to closed
+            modalComponent.setState({ isOpen: false });
+            addTimelineEvent('render', 'React: Modal component render completed');
+            
+            // Simulate DOM update
+            addTimelineEvent('dom', 'Browser: DOM updated - modal hidden');
+            
+            // Simulate flushPendingEffects (happens after DOM update)
+            setTimeout(() => {
+                modalComponent.flushEffects();
+            }, 100);
+        }
+        
+        // Update scroll indicator
+        function updateScrollIndicator() {
+            const scrollY = window.scrollY;
+            document.getElementById('scrollY').textContent = scrollY;
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            addTimelineEvent('render', 'Page: Initial page load');
+            updateScrollIndicator();
+            
+            // Listen for scroll events
+            window.addEventListener('scroll', updateScrollIndicator);
+        });
+    </script>
+</body>
+</html> 

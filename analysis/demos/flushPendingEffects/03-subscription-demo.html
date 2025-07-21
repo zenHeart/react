@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>flushPendingEffects Demo: Subscription Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .demo-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .chat-room {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            background: #f9f9f9;
+        }
+        .message {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 5px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .message.own {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+        .message.system {
+            background: #fff3e0;
+            border-color: #ff9800;
+            font-style: italic;
+        }
+        .message-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            background: white;
+        }
+        .timeline {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .timeline-item {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #2196f3;
+            padding-left: 10px;
+        }
+        .timeline-item.render { border-left-color: #4caf50; }
+        .timeline-item.dom { border-left-color: #ff9800; }
+        .timeline-item.effect { border-left-color: #9c27b0; }
+        .timeline-item.subscription { border-left-color: #f44336; }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        .status-indicator {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .status-indicator.connected {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+        .status-indicator.disconnected {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .input-group input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .room-selector {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+        .subscription-counter {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>flushPendingEffects Demo: Subscription Management</h1>
+    
+    <div class="demo-container">
+        <h2>Chat Room Component</h2>
+        <p>This demo shows how <code>flushPendingEffects</code> affects subscription management with <code>useEffect</code>.</p>
+        
+        <div class="timeline" id="timeline">
+            <div class="timeline-item">Timeline will appear here...</div>
+        </div>
+        
+        <button onclick="joinRoom('general')">Join General Room</button>
+        <button onclick="joinRoom('tech')">Join Tech Room</button>
+        <button onclick="joinRoom('random')">Join Random Room</button>
+        <button onclick="leaveRoom()">Leave Current Room</button>
+        <button onclick="clearTimeline()">Clear Timeline</button>
+    </div>
+
+    <div class="demo-container">
+        <div class="room-selector">
+            <h3>Room Selector</h3>
+            <p>Switch between different chat rooms to see how subscriptions are managed:</p>
+            <div class="subscription-counter" id="subscriptionCounter">
+                Active Subscriptions: 0
+            </div>
+        </div>
+        
+        <div id="chatRoom"></div>
+    </div>
+
+    <div class="demo-container">
+        <h3>What's Happening:</h3>
+        <ol>
+            <li><strong>Component Renders</strong> - React renders the chat room component</li>
+            <li><strong>DOM Updates</strong> - Browser updates the DOM with empty message list</li>
+            <li><strong>flushPendingEffects Runs</strong> - React executes useEffect</li>
+            <li><strong>Subscription Established</strong> - useEffect creates subscription to chat room</li>
+            <li><strong>Real-time Updates</strong> - Messages flow in through subscription</li>
+            <li><strong>Cleanup on Unmount</strong> - Subscription is removed when leaving room</li>
+        </ol>
+        
+        <h3>Key Points:</h3>
+        <ul>
+            <li>Subscriptions are established <strong>after</strong> component is mounted</li>
+            <li>Cleanup functions prevent memory leaks</li>
+            <li>Real-time data flows continuously</li>
+            <li>Switching rooms properly cleans up old subscriptions</li>
+        </ul>
+    </div>
+
+    <script>
+        let timeline = [];
+        let currentChatComponent = null;
+        let activeSubscriptions = 0;
+        
+        function addTimelineEvent(phase, message) {
+            const timestamp = Date.now();
+            timeline.push({ phase, message, timestamp });
+            updateTimelineDisplay();
+        }
+        
+        function updateTimelineDisplay() {
+            const container = document.getElementById('timeline');
+            container.innerHTML = timeline.map(item => {
+                const time = new Date(item.timestamp).toLocaleTimeString();
+                return `<div class="timeline-item ${item.phase}">[${time}] ${item.message}</div>`;
+            }).join('');
+        }
+        
+        function clearTimeline() {
+            timeline = [];
+            updateTimelineDisplay();
+        }
+        
+        function updateSubscriptionCounter() {
+            document.getElementById('subscriptionCounter').textContent = `Active Subscriptions: ${activeSubscriptions}`;
+        }
+        
+        // Simulate chat service
+        class ChatService {
+            constructor() {
+                this.subscriptions = new Map();
+                this.messageQueues = {
+                    general: [
+                        { id: 1, user: 'Alice', text: 'Hello everyone!', timestamp: Date.now() - 5000 },
+                        { id: 2, user: 'Bob', text: 'Hi Alice!', timestamp: Date.now() - 3000 },
+                        { id: 3, user: 'Charlie', text: 'How is everyone doing?', timestamp: Date.now() - 1000 }
+                    ],
+                    tech: [
+                        { id: 1, user: 'Dev1', text: 'Anyone working on React?', timestamp: Date.now() - 4000 },
+                        { id: 2, user: 'Dev2', text: 'Yes! I love the new hooks API', timestamp: Date.now() - 2000 }
+                    ],
+                    random: [
+                        { id: 1, user: 'RandomUser', text: 'Random fact: React was created at Facebook', timestamp: Date.now() - 6000 },
+                        { id: 2, user: 'AnotherUser', text: 'That\'s interesting!', timestamp: Date.now() - 3000 }
+                    ]
+                };
+            }
+            
+            subscribe(roomId, callback) {
+                addTimelineEvent('subscription', `ChatService: Creating subscription for room ${roomId}`);
+                activeSubscriptions++;
+                updateSubscriptionCounter();
+                
+                // Store subscription
+                this.subscriptions.set(roomId, callback);
+                
+                // Send existing messages
+                const messages = this.messageQueues[roomId] || [];
+                messages.forEach(message => {
+                    callback(message);
+                });
+                
+                // Simulate real-time messages
+                const interval = setInterval(() => {
+                    const newMessage = {
+                        id: Date.now(),
+                        user: `User${Math.floor(Math.random() * 100)}`,
+                        text: `Random message ${Math.floor(Math.random() * 1000)}`,
+                        timestamp: Date.now()
+                    };
+                    
+                    if (this.subscriptions.has(roomId)) {
+                        callback(newMessage);
+                    } else {
+                        clearInterval(interval);
+                    }
+                }, 3000 + Math.random() * 2000);
+                
+                return () => {
+                    addTimelineEvent('subscription', `ChatService: Cleaning up subscription for room ${roomId}`);
+                    this.subscriptions.delete(roomId);
+                    activeSubscriptions--;
+                    updateSubscriptionCounter();
+                    clearInterval(interval);
+                };
+            }
+        }
+        
+        const chatService = new ChatService();
+        
+        // Simulate React component with useEffect
+        class ChatRoomComponent {
+            constructor(roomId) {
+                this.roomId = roomId;
+                this.state = { messages: [], isConnected: false };
+                this.effects = [];
+                this.cleanupFunctions = [];
+                this.subscription = null;
+            }
+            
+            setState(newState) {
+                this.state = { ...this.state, ...newState };
+                this.render();
+            }
+            
+            useEffect(callback, dependencies) {
+                this.effects.push({ callback, dependencies });
+            }
+            
+            render() {
+                const { messages, isConnected } = this.state;
+                const container = document.getElementById('chatRoom');
+                const status = document.getElementById('connectionStatus');
+                
+                if (!isConnected) {
+                    container.innerHTML = '<div class="chat-room"><p>Connecting to chat room...</p></div>';
+                    return;
+                }
+                
+                container.innerHTML = `
+                    <div class="chat-room">
+                        <h3>Chat Room: ${this.roomId}</h3>
+                        <div class="status-indicator ${isConnected ? 'connected' : 'disconnected'}" id="connectionStatus">
+                            Status: ${isConnected ? 'Connected' : 'Disconnected'}
+                        </div>
+                        <div class="message-list">
+                            ${messages.map(msg => `
+                                <div class="message ${msg.user === 'You' ? 'own' : msg.user === 'System' ? 'system' : ''}">
+                                    <strong>${msg.user}</strong>: ${msg.text}
+                                    <small style="color: #666;">${new Date(msg.timestamp).toLocaleTimeString()}</small>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="input-group">
+                            <input type="text" id="messageInput" placeholder="Type a message..." onkeypress="sendMessage(event)">
+                            <button onclick="sendMessageFromInput()">Send</button>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            flushEffects() {
+                addTimelineEvent('effect', 'flushPendingEffects: Starting effect execution');
+                
+                // Run cleanup functions first
+                this.cleanupFunctions.forEach(cleanup => {
+                    if (cleanup) cleanup();
+                });
+                this.cleanupFunctions = [];
+                
+                // Execute effects
+                this.effects.forEach(({ callback, dependencies }) => {
+                    const cleanup = callback();
+                    if (cleanup) {
+                        this.cleanupFunctions.push(cleanup);
+                    }
+                });
+                
+                addTimelineEvent('effect', 'flushPendingEffects: Effects completed');
+            }
+        }
+        
+        function joinRoom(roomId) {
+            // Clear timeline
+            timeline = [];
+            updateTimelineDisplay();
+            
+            addTimelineEvent('render', `React: Chat room component render started for ${roomId}`);
+            
+            // Create new chat component
+            currentChatComponent = new ChatRoomComponent(roomId);
+            
+            // Simulate useEffect for subscription management
+            currentChatComponent.useEffect(() => {
+                addTimelineEvent('effect', `useEffect: Setting up subscription for room ${roomId}`);
+                
+                // Set connected state
+                currentChatComponent.setState({ isConnected: true });
+                
+                // Create subscription
+                const cleanup = chatService.subscribe(roomId, (message) => {
+                    addTimelineEvent('subscription', `Received message: ${message.text}`);
+                    currentChatComponent.setState({
+                        messages: [...currentChatComponent.state.messages, message]
+                    });
+                });
+                
+                // Add system message
+                setTimeout(() => {
+                    currentChatComponent.setState({
+                        messages: [...currentChatComponent.state.messages, {
+                            id: Date.now(),
+                            user: 'System',
+                            text: `You joined the ${roomId} room`,
+                            timestamp: Date.now()
+                        }]
+                    });
+                }, 100);
+                
+                // Return cleanup function
+                return () => {
+                    addTimelineEvent('effect', `useEffect: Cleanup - removing subscription for ${roomId}`);
+                    cleanup();
+                    currentChatComponent.setState({ isConnected: false });
+                };
+            }, [roomId]);
+            
+            // Initial render
+            currentChatComponent.setState({ messages: [], isConnected: false });
+            addTimelineEvent('render', 'React: Chat room component render completed');
+            
+            // Simulate DOM update
+            addTimelineEvent('dom', 'Browser: DOM updated with chat room');
+            
+            // Simulate flushPendingEffects (happens after DOM update)
+            setTimeout(() => {
+                currentChatComponent.flushEffects();
+            }, 100);
+        }
+        
+        function leaveRoom() {
+            if (!currentChatComponent) return;
+            
+            addTimelineEvent('render', 'React: Chat room component unmounting');
+            
+            // Simulate component unmounting
+            currentChatComponent.flushEffects();
+            
+            // Clear the chat room
+            document.getElementById('chatRoom').innerHTML = '<div class="chat-room"><p>No room selected</p></div>';
+            
+            currentChatComponent = null;
+        }
+        
+        function sendMessage(event) {
+            if (event.key === 'Enter') {
+                sendMessageFromInput();
+            }
+        }
+        
+        function sendMessageFromInput() {
+            if (!currentChatComponent) return;
+            
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+            
+            if (text) {
+                const message = {
+                    id: Date.now(),
+                    user: 'You',
+                    text: text,
+                    timestamp: Date.now()
+                };
+                
+                currentChatComponent.setState({
+                    messages: [...currentChatComponent.state.messages, message]
+                });
+                
+                input.value = '';
+            }
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            addTimelineEvent('render', 'Page: Initial page load');
+            updateSubscriptionCounter();
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React Effect Linked List Collection Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .demo-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .effect-list {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .effect-node {
+            margin: 8px 0;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 4px solid #2196f3;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #e3f2fd;
+        }
+        .effect-node.passive { border-left-color: #4caf50; background: #e8f5e8; }
+        .effect-node.layout { border-left-color: #ff9800; background: #fff3e0; }
+        .effect-node.insertion { border-left-color: #9c27b0; background: #f3e5f5; }
+        .effect-node.completed { opacity: 0.6; background: #f0f0f0; }
+        .timeline {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .timeline-item {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #2196f3;
+            padding-left: 10px;
+        }
+        .timeline-item.render { border-left-color: #4caf50; }
+        .timeline-item.collect { border-left-color: #ff9800; }
+        .timeline-item.commit { border-left-color: #9c27b0; }
+        .timeline-item.execute { border-left-color: #f44336; }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        .status-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin: 15px 0;
+        }
+        .status-card {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+        }
+        .status-card h4 {
+            margin-top: 0;
+            color: #333;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        .effect-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .effect-btn {
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            color: white;
+        }
+        .effect-btn.passive { background: #4caf50; }
+        .effect-btn.layout { background: #ff9800; }
+        .effect-btn.insertion { background: #9c27b0; }
+        .current-fiber {
+            background: #e3f2fd;
+            border: 2px solid #2196f3;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .linked-list-visual {
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .list-node {
+            display: inline-block;
+            margin: 5px;
+            padding: 8px;
+            border: 2px solid #2196f3;
+            border-radius: 4px;
+            background: white;
+        }
+        .list-arrow {
+            display: inline-block;
+            margin: 0 5px;
+            font-weight: bold;
+            color: #666;
+        }
+        .phase-indicator {
+            background: #fff3e0;
+            border: 2px solid #ff9800;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>React Effect Linked List Collection Demo</h1>
+    
+    <div class="demo-container">
+        <h2>How React Collects Effects into a Linked List</h2>
+        <p>This demo shows how React's work loop collects render effects into a circular linked list during the render phase.</p>
+        
+        <div class="controls">
+            <button onclick="startRender()">Start Render</button>
+            <button onclick="addEffect()">Add Effect</button>
+            <button onclick="commitEffects()">Commit Effects</button>
+            <button onclick="clearTimeline()">Clear Timeline</button>
+        </div>
+        
+        <div class="effect-buttons">
+            <button class="effect-btn passive" onclick="addEffect('passive')">useEffect</button>
+            <button class="effect-btn layout" onclick="addEffect('layout')">useLayoutEffect</button>
+            <button class="effect-btn insertion" onclick="addEffect('insertion')">useInsertionEffect</button>
+        </div>
+    </div>
+
+    <div class="demo-container">
+        <h3>Current Fiber</h3>
+        <div class="current-fiber" id="currentFiber">
+            <strong>Status:</strong> No fiber in progress
+        </div>
+        
+        <div class="phase-indicator" id="phaseIndicator">
+            <strong>Current Phase:</strong> Idle
+        </div>
+    </div>
+
+    <div class="demo-container">
+        <h3>Effect Collection Status</h3>
+        <div class="status-panel">
+            <div class="status-card">
+                <h4>Effects Collected</h4>
+                <div id="effectCount">0</div>
+            </div>
+            <div class="status-card">
+                <h4>Last Effect</h4>
+                <div id="lastEffect">None</div>
+            </div>
+            <div class="status-card">
+                <h4>List Type</h4>
+                <div id="listType">Empty</div>
+            </div>
+        </div>
+        
+        <div class="linked-list-visual" id="linkedListVisual">
+            <strong>Linked List Structure:</strong><br>
+            <div id="listVisual">No effects</div>
+        </div>
+    </div>
+
+    <div class="demo-container">
+        <h3>Effect List</h3>
+        <div class="effect-list" id="effectList">
+            <div>No effects collected</div>
+        </div>
+    </div>
+
+    <div class="demo-container">
+        <h3>Timeline</h3>
+        <div class="timeline" id="timeline">
+            <div class="timeline-item">Timeline will appear here...</div>
+        </div>
+    </div>
+
+    <div class="demo-container">
+        <h3>Key Concepts:</h3>
+        <ol>
+            <li><strong>Circular Linked List</strong> - Effects form a circular list with lastEffect pointer</li>
+            <li><strong>Effect Collection</strong> - Effects are collected during render phase</li>
+            <li><strong>Flag Propagation</strong> - Effect flags bubble up the fiber tree</li>
+            <li><strong>Phase Execution</strong> - Effects executed in specific commit phases</li>
+            <li><strong>Cleanup Management</strong> - Automatic cleanup with proper ordering</li>
+        </ol>
+        
+        <h3>How Effect Collection Works:</h3>
+        <ul>
+            <li><strong>Render Phase</strong> - Effects collected into fiber's update queue</li>
+            <li><strong>Linked List Formation</strong> - Effects linked in circular list</li>
+            <li><strong>Flag Marking</strong> - Fiber marked with effect flags</li>
+            <li><strong>Commit Phase</strong> - Effects executed in specific order</li>
+            <li><strong>Cleanup</strong> - Destroy functions called automatically</li>
+        </ul>
+    </div>
+
+    <script>
+        let timeline = [];
+        let effects = [];
+        let currentPhase = 'idle';
+        let effectIdCounter = 0;
+        let lastEffect = null;
+        
+        const effectTypes = {
+            'passive': { name: 'useEffect', color: '#4caf50', phase: 'passive' },
+            'layout': { name: 'useLayoutEffect', color: '#ff9800', phase: 'layout' },
+            'insertion': { name: 'useInsertionEffect', color: '#9c27b0', phase: 'insertion' }
+        };
+        
+        function addTimelineEvent(phase, message) {
+            const timestamp = Date.now();
+            timeline.push({ phase, message, timestamp });
+            updateTimelineDisplay();
+        }
+        
+        function updateTimelineDisplay() {
+            const container = document.getElementById('timeline');
+            container.innerHTML = timeline.map(item => {
+                const time = new Date(item.timestamp).toLocaleTimeString();
+                return `<div class="timeline-item ${item.phase}">[${time}] ${item.message}</div>`;
+            }).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function clearTimeline() {
+            timeline = [];
+            updateTimelineDisplay();
+        }
+        
+        function addEffect(type = 'passive') {
+            const effectId = ++effectIdCounter;
+            const effect = {
+                id: effectId,
+                type: type,
+                name: `${effectTypes[type].name} ${effectId}`,
+                phase: effectTypes[type].phase,
+                status: 'pending',
+                create: `() => console.log('${effectTypes[type].name} ${effectId}')`,
+                destroy: null,
+                deps: ['dependency'],
+                next: null
+            };
+            
+            // Add to circular linked list
+            if (lastEffect === null) {
+                // First effect - create circular list
+                effect.next = effect;
+                lastEffect = effect;
+            } else {
+                // Add to existing circular list
+                const firstEffect = lastEffect.next;
+                lastEffect.next = effect;
+                effect.next = firstEffect;
+                lastEffect = effect;
+            }
+            
+            effects.push(effect);
+            
+            addTimelineEvent('collect', `Added ${effect.name} to linked list`);
+            updateEffectDisplay();
+            updateLinkedListVisual();
+        }
+        
+        function updateEffectDisplay() {
+            const container = document.getElementById('effectList');
+            const effectCount = document.getElementById('effectCount');
+            const lastEffectDisplay = document.getElementById('lastEffect');
+            const listType = document.getElementById('listType');
+            
+            effectCount.textContent = effects.length;
+            lastEffectDisplay.textContent = lastEffect ? lastEffect.name : 'None';
+            listType.textContent = effects.length > 0 ? 'Circular' : 'Empty';
+            
+            if (effects.length === 0) {
+                container.innerHTML = '<div>No effects collected</div>';
+                return;
+            }
+            
+            container.innerHTML = effects.map(effect => {
+                let className = `effect-node ${effect.type}`;
+                if (effect.status === 'completed') className += ' completed';
+                
+                return `
+                    <div class="${className}">
+                        <div>
+                            <strong>${effect.name}</strong><br>
+                            <small>Phase: ${effect.phase} | Status: ${effect.status}</small>
+                        </div>
+                        <div>
+                            ${effect.status === 'executing' ? '🔄' : 
+                              effect.status === 'completed' ? '✅' : '⏳'}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function updateLinkedListVisual() {
+            const container = document.getElementById('listVisual');
+            
+            if (effects.length === 0) {
+                container.innerHTML = 'No effects';
+                return;
+            }
+            
+            let visual = '';
+            let current = lastEffect ? lastEffect.next : null; // Start from first effect
+            let count = 0;
+            
+            if (current) {
+                do {
+                    visual += `<span class="list-node">${current.name}</span>`;
+                    if (count < effects.length - 1) {
+                        visual += '<span class="list-arrow">→</span>';
+                    }
+                    current = current.next;
+                    count++;
+                } while (current !== lastEffect.next && count < effects.length);
+                
+                // Show circular connection
+                if (effects.length > 1) {
+                    visual += '<br><span style="color: #666; font-size: 10px;">↑ Circular connection ↓</span>';
+                }
+            }
+            
+            container.innerHTML = visual;
+        }
+        
+        function updateCurrentFiber() {
+            const container = document.getElementById('currentFiber');
+            const phaseIndicator = document.getElementById('phaseIndicator');
+            
+            if (currentPhase === 'rendering') {
+                container.innerHTML = `
+                    <strong>Status:</strong> Rendering<br>
+                    <strong>Effects Collected:</strong> ${effects.length}<br>
+                    <strong>Last Effect:</strong> ${lastEffect ? lastEffect.name : 'None'}
+                `;
+                phaseIndicator.innerHTML = '<strong>Current Phase:</strong> Render Phase (Collecting Effects)';
+            } else if (currentPhase === 'committing') {
+                container.innerHTML = `
+                    <strong>Status:</strong> Committing<br>
+                    <strong>Effects to Execute:</strong> ${effects.filter(e => e.status === 'pending').length}<br>
+                    <strong>Completed:</strong> ${effects.filter(e => e.status === 'completed').length}
+                `;
+                phaseIndicator.innerHTML = '<strong>Current Phase:</strong> Commit Phase (Executing Effects)';
+            } else {
+                container.innerHTML = '<strong>Status:</strong> No fiber in progress';
+                phaseIndicator.innerHTML = '<strong>Current Phase:</strong> Idle';
+            }
+        }
+        
+        function startRender() {
+            currentPhase = 'rendering';
+            addTimelineEvent('render', 'Started render phase - collecting effects');
+            updateCurrentFiber();
+            
+            // Simulate effect collection
+            setTimeout(() => {
+                addTimelineEvent('render', 'Render phase completed - effects collected');
+                currentPhase = 'idle';
+                updateCurrentFiber();
+            }, 1000);
+        }
+        
+        function commitEffects() {
+            if (effects.length === 0) {
+                addTimelineEvent('commit', 'No effects to commit');
+                return;
+            }
+            
+            currentPhase = 'committing';
+            addTimelineEvent('commit', 'Started commit phase - executing effects');
+            updateCurrentFiber();
+            
+            // Execute effects in order
+            let index = 0;
+            const executeNextEffect = () => {
+                if (index >= effects.length) {
+                    addTimelineEvent('execute', 'All effects executed');
+                    currentPhase = 'idle';
+                    updateCurrentFiber();
+                    return;
+                }
+                
+                const effect = effects[index];
+                effect.status = 'executing';
+                addTimelineEvent('execute', `Executing ${effect.name}`);
+                updateEffectDisplay();
+                
+                setTimeout(() => {
+                    effect.status = 'completed';
+                    addTimelineEvent('execute', `Completed ${effect.name}`);
+                    updateEffectDisplay();
+                    index++;
+                    executeNextEffect();
+                }, 500);
+            };
+            
+            executeNextEffect();
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            addTimelineEvent('render', 'Page loaded');
+            updateEffectDisplay();
+            updateCurrentFiber();
+        });
+    </script>
+</body>
+</html> 

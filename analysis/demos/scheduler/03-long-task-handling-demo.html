@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React Scheduler: Long Task Handling Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .demo-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .task-list {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .task-item {
+            margin: 8px 0;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 4px solid #2196f3;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .task-item.long { border-left-color: #f44336; background: #ffebee; }
+        .task-item.medium { border-left-color: #ff9800; background: #fff3e0; }
+        .task-item.short { border-left-color: #4caf50; background: #e8f5e8; }
+        .task-item.blocked { opacity: 0.6; background: #f0f0f0; }
+        .task-item.completed { opacity: 0.8; background: #e8f5e8; }
+        .timeline {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .timeline-item {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #2196f3;
+            padding-left: 10px;
+        }
+        .timeline-item.render { border-left-color: #4caf50; }
+        .timeline-item.yield { border-left-color: #ff9800; }
+        .timeline-item.block { border-left-color: #f44336; }
+        .timeline-item.resume { border-left-color: #9c27b0; }
+        .timeline-item.complete { border-left-color: #2e7d32; }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        .status-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin: 15px 0;
+        }
+        .status-card {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+        }
+        .status-card h4 {
+            margin-top: 0;
+            color: #333;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        .task-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .task-btn {
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            color: white;
+        }
+        .task-btn.short { background: #4caf50; }
+        .task-btn.medium { background: #ff9800; }
+        .task-btn.long { background: #f44336; }
+        .current-task {
+            background: #e3f2fd;
+            border: 2px solid #2196f3;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .performance-indicator {
+            background: #fff3e0;
+            border: 2px solid #ff9800;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4caf50, #2196f3);
+            transition: width 0.3s ease;
+        }
+        .blocking-indicator {
+            background: #ffebee;
+            border: 2px solid #f44336;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>React Scheduler: Long Task Handling Demo</h1>
+    
+    <div class="demo-container">
+        <h2>How React Prevents Long Tasks from Blocking the Main Thread</h2>
+        <p>This demo shows how React's scheduler breaks down long tasks into smaller chunks to prevent blocking.</p>
+        
+        <div class="controls">
+            <button onclick="startScheduler()">Start Scheduler</button>
+            <button onclick="stopScheduler()">Stop Scheduler</button>
+            <button onclick="clearTimeline()">Clear Timeline</button>
+        </div>
+        
+        <div class="task-buttons">
+            <button class="task-btn short" onclick="addTask('short')">Short Task (50ms)</button>
+            <button class="task-btn medium" onclick="addTask('medium')">Medium Task (200ms)</button>
+            <button class="task-btn long" onclick="addTask('long')">Long Task (1000ms)</button>
+        </div>
+    </div>
+
+    <div class="demo-container">
+        <h3>Current Task</h3>
+        <div class="current-task" id="currentTask">
+            <strong>Status:</strong> No task in progress
+        </div>
+        
+        <div class="performance-indicator" id="performanceIndicator">
+            <strong>Performance Monitor:</strong><br>
+            <div>Main thread blocked: <span id="blockedTime">0ms</span></div>
+            <div>Time slice: <span id="timeSlice">5ms</span></div>
+            <div>Yields: <span id="yieldCount">0</span></div>
+        </div>
+        
+        <div class="blocking-indicator" id="blockingIndicator">
+            ⚠️ <strong>Warning:</strong> Long task detected! Breaking into chunks...
+        </div>
+    </div>
+
+    <div class="demo-container">
+        <h3>Task Queue Status</h3>
+        <div class="status-panel">
+            <div class="status-card">
+                <h4>Queue Length</h4>
+                <div id="queueLength">0</div>
+            </div>
+            <div class="status-card">
+                <h4>Current Task Type</h4>
+                <div id="currentTaskType">None</div>
+            </div>
+            <div class="status-card">
+                <h4>Total Blocked Time</h4>
+                <div id="totalBlockedTime">0ms</div>
+            </div>
+        </div>
+        
+        <div class="task-list" id="taskList">
+            <div>No tasks in queue</div>
+        </div>
+    </div>
+
+    <div class="demo-container">
+        <h3>Timeline</h3>
+        <div class="timeline" id="timeline">
+            <div class="timeline-item">Timeline will appear here...</div>
+        </div>
+    </div>
+
+    <div class="demo-container">
+        <h3>Key Concepts:</h3>
+        <ol>
+            <li><strong>Time Slicing</strong> - Long tasks are broken into smaller chunks</li>
+            <li><strong>shouldYieldToHost()</strong> - Checks if main thread needs control</li>
+            <li><strong>Chunking</strong> - Large work is split into manageable pieces</li>
+            <li><strong>Resume Capability</strong> - Work continues from where it left off</li>
+            <li><strong>Blocking Prevention</strong> - Prevents UI freezing during long operations</li>
+        </ol>
+        
+        <h3>How Long Task Handling Works:</h3>
+        <ul>
+            <li><strong>Task Arrives</strong> - Long task is added to queue</li>
+            <li><strong>Chunking</strong> - Task is broken into smaller chunks</li>
+            <li><strong>Time Slicing</strong> - Each chunk runs for limited time</li>
+            <li><strong>Yield Check</strong> - After each chunk, check if should yield</li>
+            <li><strong>Resume</strong> - Continue with next chunk when control returns</li>
+        </ul>
+    </div>
+
+    <script>
+        let timeline = [];
+        let taskQueue = [];
+        let currentTask = null;
+        let isSchedulerRunning = false;
+        let taskIdCounter = 0;
+        let totalBlockedTime = 0;
+        let yieldCount = 0;
+        let timeSlice = 5; // milliseconds
+        
+        const taskTypes = {
+            'short': { duration: 50, name: 'Short Task', color: '#4caf50' },
+            'medium': { duration: 200, name: 'Medium Task', color: '#ff9800' },
+            'long': { duration: 1000, name: 'Long Task', color: '#f44336' }
+        };
+        
+        function addTimelineEvent(phase, message) {
+            const timestamp = Date.now();
+            timeline.push({ phase, message, timestamp });
+            updateTimelineDisplay();
+        }
+        
+        function updateTimelineDisplay() {
+            const container = document.getElementById('timeline');
+            container.innerHTML = timeline.map(item => {
+                const time = new Date(item.timestamp).toLocaleTimeString();
+                return `<div class="timeline-item ${item.phase}">[${time}] ${item.message}</div>`;
+            }).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function clearTimeline() {
+            timeline = [];
+            updateTimelineDisplay();
+        }
+        
+        function addTask(type) {
+            const taskId = ++taskIdCounter;
+            const task = {
+                id: taskId,
+                type: type,
+                name: `${taskTypes[type].name} ${taskId}`,
+                duration: taskTypes[type].duration,
+                status: 'pending',
+                progress: 0,
+                chunks: Math.ceil(taskTypes[type].duration / timeSlice),
+                currentChunk: 0,
+                startTime: null
+            };
+            
+            taskQueue.push(task);
+            addTimelineEvent('render', `Added ${task.name} (${task.duration}ms, ${task.chunks} chunks)`);
+            updateTaskDisplay();
+            
+            if (!isSchedulerRunning) {
+                startScheduler();
+            }
+        }
+        
+        function updateTaskDisplay() {
+            const container = document.getElementById('taskList');
+            const queueLength = document.getElementById('queueLength');
+            const currentTaskType = document.getElementById('currentTaskType');
+            const totalBlockedTimeDisplay = document.getElementById('totalBlockedTime');
+            
+            queueLength.textContent = taskQueue.length;
+            totalBlockedTimeDisplay.textContent = totalBlockedTime + 'ms';
+            
+            if (currentTask) {
+                currentTaskType.textContent = currentTask.type;
+            } else {
+                currentTaskType.textContent = 'None';
+            }
+            
+            if (taskQueue.length === 0) {
+                container.innerHTML = '<div>No tasks in queue</div>';
+                return;
+            }
+            
+            container.innerHTML = taskQueue.map(task => {
+                let className = `task-item ${task.type}`;
+                if (task.status === 'completed') className += ' completed';
+                if (task.status === 'blocked') className += ' blocked';
+                
+                return `
+                    <div class="${className}">
+                        <div>
+                            <strong>${task.name}</strong><br>
+                            <small>Progress: ${Math.round(task.progress)}% (${task.currentChunk}/${task.chunks} chunks)</small>
+                        </div>
+                        <div>
+                            ${task.status === 'running' ? '🔄' : 
+                              task.status === 'completed' ? '✅' : 
+                              task.status === 'blocked' ? '⏸️' : '⏳'}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function updateCurrentTask() {
+            const container = document.getElementById('currentTask');
+            const performanceIndicator = document.getElementById('performanceIndicator');
+            const blockingIndicator = document.getElementById('blockingIndicator');
+            
+            if (currentTask) {
+                container.innerHTML = `
+                    <strong>Status:</strong> Running<br>
+                    <strong>Task:</strong> ${currentTask.name}<br>
+                    <strong>Progress:</strong> ${Math.round(currentTask.progress)}%<br>
+                    <strong>Chunk:</strong> ${currentTask.currentChunk + 1}/${currentTask.chunks}<br>
+                    <strong>Duration:</strong> ${currentTask.duration}ms
+                `;
+                
+                // Show blocking indicator for long tasks
+                if (currentTask.type === 'long') {
+                    blockingIndicator.style.display = 'block';
+                } else {
+                    blockingIndicator.style.display = 'none';
+                }
+            } else {
+                container.innerHTML = '<strong>Status:</strong> No task in progress';
+                blockingIndicator.style.display = 'none';
+            }
+            
+            // Update performance indicators
+            document.getElementById('blockedTime').textContent = totalBlockedTime + 'ms';
+            document.getElementById('timeSlice').textContent = timeSlice + 'ms';
+            document.getElementById('yieldCount').textContent = yieldCount;
+        }
+        
+        function shouldYieldToHost() {
+            const timeElapsed = Date.now() - window.taskStartTime;
+            return timeElapsed >= timeSlice;
+        }
+        
+        async function processTaskChunk(task) {
+            if (task.currentChunk >= task.chunks) {
+                return true; // Task completed
+            }
+            
+            task.status = 'running';
+            task.startTime = task.startTime || Date.now();
+            currentTask = task;
+            updateCurrentTask();
+            updateTaskDisplay();
+            
+            const chunkStartTime = Date.now();
+            addTimelineEvent('render', `Processing chunk ${task.currentChunk + 1}/${task.chunks} of ${task.name}`);
+            
+            // Simulate work for this chunk
+            const chunkDuration = task.duration / task.chunks;
+            await new Promise(resolve => setTimeout(resolve, chunkDuration));
+            
+            task.currentChunk++;
+            task.progress = (task.currentChunk / task.chunks) * 100;
+            
+            const chunkEndTime = Date.now();
+            const chunkBlockedTime = chunkEndTime - chunkStartTime;
+            totalBlockedTime += chunkBlockedTime;
+            
+            addTimelineEvent('render', `Completed chunk ${task.currentChunk}/${task.chunks} of ${task.name}`);
+            
+            // Check if we should yield
+            if (shouldYieldToHost()) {
+                yieldCount++;
+                addTimelineEvent('yield', `Time slice expired (${timeSlice}ms), yielding to host`);
+                return false; // Yield
+            }
+            
+            return processTaskChunk(task); // Continue with next chunk
+        }
+        
+        async function startScheduler() {
+            if (isSchedulerRunning) return;
+            
+            isSchedulerRunning = true;
+            addTimelineEvent('render', 'Scheduler started');
+            
+            while (isSchedulerRunning && taskQueue.length > 0) {
+                const nextTask = taskQueue[0];
+                
+                // Remove task from queue
+                taskQueue.shift();
+                updateTaskDisplay();
+                
+                // Process the task
+                window.taskStartTime = Date.now();
+                const completed = await processTaskChunk(nextTask);
+                
+                if (completed) {
+                    // Task completed successfully
+                    nextTask.status = 'completed';
+                    currentTask = null;
+                    updateCurrentTask();
+                    addTimelineEvent('complete', `Completed ${nextTask.name}`);
+                } else {
+                    // Task was interrupted, add it back to queue
+                    nextTask.status = 'blocked';
+                    taskQueue.unshift(nextTask);
+                    updateTaskDisplay();
+                    addTimelineEvent('block', `${nextTask.name} was blocked, will resume`);
+                    
+                    // Wait a bit before resuming
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+            }
+            
+            if (taskQueue.length === 0) {
+                addTimelineEvent('render', 'Scheduler idle - no more tasks');
+            }
+            
+            isSchedulerRunning = false;
+        }
+        
+        function stopScheduler() {
+            isSchedulerRunning = false;
+            if (currentTask) {
+                currentTask.status = 'blocked';
+                addTimelineEvent('block', `Scheduler stopped, blocked ${currentTask.name}`);
+                currentTask = null;
+                updateCurrentTask();
+            }
+            addTimelineEvent('render', 'Scheduler stopped');
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            addTimelineEvent('render', 'Page loaded');
+            updateTaskDisplay();
+            updateCurrentTask();
+        });
+    </script>
+</body>
+</html> 

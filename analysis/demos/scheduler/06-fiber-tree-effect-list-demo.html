@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fiber Tree & Effect List Relationship Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .demo-section {
+            margin-bottom: 40px;
+            padding: 25px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+
+        .demo-section h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .fiber-tree {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+            position: relative;
+        }
+
+        .fiber-node {
+            border: 3px solid #3498db;
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            color: #2c3e50;
+            font-weight: bold;
+            font-size: 0.9em;
+            text-align: center;
+            position: relative;
+            margin: 0 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .fiber-node.has-effects {
+            border-color: #e74c3c;
+            background: #fff5f5;
+            animation: pulse 2s infinite;
+        }
+
+        .fiber-node.collecting {
+            border-color: #f39c12;
+            background: #fffbf0;
+            transform: scale(1.1);
+        }
+
+        .fiber-node.completed {
+            border-color: #27ae60;
+            background: #f0fff4;
+        }
+
+        .fiber-connection {
+            position: absolute;
+            height: 3px;
+            background: #3498db;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .fiber-connection.effect-flow {
+            background: #e74c3c;
+            height: 4px;
+            z-index: 1;
+        }
+
+        .effect-list {
+            margin: 20px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            border: 2px solid #e1e5e9;
+        }
+
+        .effect-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+            transition: all 0.3s ease;
+        }
+
+        .effect-item.active {
+            background: #e8f5e8;
+            border-left-color: #27ae60;
+            transform: translateX(10px);
+        }
+
+        .effect-item.collecting {
+            background: #fff3cd;
+            border-left-color: #f39c12;
+            animation: slideIn 0.5s ease;
+        }
+
+        .effect-type {
+            font-weight: bold;
+            color: #2c3e50;
+            min-width: 120px;
+        }
+
+        .effect-desc {
+            flex: 1;
+            color: #555;
+        }
+
+        .effect-status {
+            font-size: 0.8em;
+            padding: 2px 8px;
+            border-radius: 12px;
+            color: white;
+        }
+
+        .status-pending {
+            background: #f39c12;
+        }
+
+        .status-executed {
+            background: #27ae60;
+        }
+
+        .status-collecting {
+            background: #3498db;
+        }
+
+        .work-loop-visualization {
+            margin: 30px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            border: 2px solid #e1e5e9;
+        }
+
+        .work-step {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+            transition: all 0.3s ease;
+        }
+
+        .work-step.active {
+            background: #e8f5e8;
+            border-left-color: #27ae60;
+            transform: translateX(10px);
+        }
+
+        .work-step.completed {
+            background: #f0f8ff;
+            border-left-color: #3498db;
+            opacity: 0.7;
+        }
+
+        .step-number {
+            background: #3498db;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+
+        .step-number.active {
+            background: #27ae60;
+        }
+
+        .step-number.completed {
+            background: #95a5a6;
+        }
+
+        .step-description {
+            flex: 1;
+            color: #2c3e50;
+        }
+
+        .step-fiber {
+            font-weight: bold;
+            color: #e74c3c;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #3498db;
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn.primary {
+            background: #27ae60;
+        }
+
+        .btn.warning {
+            background: #f39c12;
+        }
+
+        .btn.danger {
+            background: #e74c3c;
+        }
+
+        .info-panel {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #3498db;
+        }
+
+        .info-panel h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .info-panel ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .info-panel li {
+            margin: 8px 0;
+            padding: 8px;
+            background: white;
+            border-radius: 5px;
+            border-left: 3px solid #3498db;
+        }
+
+        .phase-indicator {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            border: 2px solid #e1e5e9;
+        }
+
+        .phase {
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .phase.active {
+            background: #27ae60;
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .phase.completed {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .phase.pending {
+            background: #ecf0f1;
+            color: #7f8c8d;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(-20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .fiber-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .fiber-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            border: 2px solid #e1e5e9;
+            transition: all 0.3s ease;
+        }
+
+        .fiber-card.active {
+            border-color: #27ae60;
+            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.2);
+        }
+
+        .fiber-card h4 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+
+        .fiber-property {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .property-name {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .property-value {
+            color: #7f8c8d;
+        }
+
+        .property-value.has-effects {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+
+        .property-value.collecting {
+            color: #f39c12;
+            font-weight: bold;
+        }
+
+        .property-value.completed {
+            color: #27ae60;
+            font-weight: bold;
+        }
+
+        .effect-flow-diagram {
+            margin: 30px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            border: 2px solid #e1e5e9;
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .flow-step::after {
+            content: '↓';
+            position: absolute;
+            bottom: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.5em;
+            color: #3498db;
+        }
+
+        .flow-step:last-child::after {
+            display: none;
+        }
+
+        .flow-step.active {
+            background: #e8f5e8;
+            border-left: 4px solid #27ae60;
+        }
+
+        .flow-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .flow-icon.render {
+            background: #3498db;
+        }
+
+        .flow-icon.collect {
+            background: #f39c12;
+        }
+
+        .flow-icon.commit {
+            background: #27ae60;
+        }
+
+        .flow-icon.execute {
+            background: #e74c3c;
+        }
+
+        .flow-description {
+            flex: 1;
+            color: #2c3e50;
+        }
+
+        .flow-fiber {
+            font-weight: bold;
+            color: #e74c3c;
+        }
+
+        @media (max-width: 768px) {
+            .fiber-tree {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .fiber-node {
+                margin: 10px 0;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            .fiber-details {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Fiber Tree & Effect List Relationship</h1>
+            <p>Visualizing how React collects effects during the work loop</p>
+        </div>
+
+        <div class="content">
+            <div class="demo-section">
+                <h2>Component Tree Structure</h2>
+                <p>This demo shows a simple React component tree and how effects are collected per fiber:</p>
+                
+                <div class="info-panel">
+                    <h3>Component Structure:</h3>
+                    <ul>
+                        <li><strong>App</strong> - Root component with useEffect</li>
+                        <li><strong>Header</strong> - Component with useLayoutEffect</li>
+                        <li><strong>Content</strong> - Component with useEffect and useLayoutEffect</li>
+                        <li><strong>Footer</strong> - Component with useEffect</li>
+                    </ul>
+                </div>
+
+                <div class="fiber-tree" id="fiberTree">
+                    <!-- Fiber nodes will be created dynamically -->
+                </div>
+
+                <div class="phase-indicator">
+                    <div class="phase pending" id="renderPhase">Render Phase</div>
+                    <div class="phase pending" id="commitPhase">Commit Phase</div>
+                    <div class="phase pending" id="effectPhase">Effect Execution</div>
+                </div>
+            </div>
+
+            <div class="demo-section">
+                <h2>Work Loop Process</h2>
+                <div class="work-loop-visualization" id="workLoop">
+                    <!-- Work loop steps will be created dynamically -->
+                </div>
+            </div>
+
+            <div class="demo-section">
+                <h2>Effect Collection Flow</h2>
+                <div class="effect-flow-diagram" id="effectFlow">
+                    <!-- Effect flow steps will be created dynamically -->
+                </div>
+            </div>
+
+            <div class="demo-section">
+                <h2>Per-Fiber Effect Lists</h2>
+                <div class="fiber-details" id="fiberDetails">
+                    <!-- Fiber details will be created dynamically -->
+                </div>
+            </div>
+
+            <div class="demo-section">
+                <h2>Effect Lists by Fiber</h2>
+                <div id="effectLists">
+                    <!-- Effect lists will be created dynamically -->
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="btn primary" id="startBtn">Start Work Loop</button>
+                <button class="btn warning" id="stepBtn" disabled>Step Through</button>
+                <button class="btn danger" id="resetBtn">Reset</button>
+                <button class="btn" id="autoBtn">Auto Play</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Component structure with effects
+        const componentTree = {
+            name: 'App',
+            effects: [
+                { type: 'useEffect', desc: 'App effect', deps: [] }
+            ],
+            children: [
+                {
+                    name: 'Header',
+                    effects: [
+                        { type: 'useLayoutEffect', desc: 'Header layout effect', deps: [] }
+                    ],
+                    children: []
+                },
+                {
+                    name: 'Content',
+                    effects: [
+                        { type: 'useEffect', desc: 'Content effect', deps: [] },
+                        { type: 'useLayoutEffect', desc: 'Content layout effect', deps: [] }
+                    ],
+                    children: []
+                },
+                {
+                    name: 'Footer',
+                    effects: [
+                        { type: 'useEffect', desc: 'Footer effect', deps: [] }
+                    ],
+                    children: []
+                }
+            ]
+        };
+
+        // Work loop steps
+        const workLoopSteps = [
+            { step: 1, description: 'Begin work on App fiber', fiber: 'App', action: 'beginWork' },
+            { step: 2, description: 'Collect effects for App fiber', fiber: 'App', action: 'collectEffects' },
+            { step: 3, description: 'Begin work on Header fiber', fiber: 'Header', action: 'beginWork' },
+            { step: 4, description: 'Collect effects for Header fiber', fiber: 'Header', action: 'collectEffects' },
+            { step: 5, description: 'Complete work on Header fiber', fiber: 'Header', action: 'completeWork' },
+            { step: 6, description: 'Begin work on Content fiber', fiber: 'Content', action: 'beginWork' },
+            { step: 7, description: 'Collect effects for Content fiber', fiber: 'Content', action: 'collectEffects' },
+            { step: 8, description: 'Complete work on Content fiber', fiber: 'Content', action: 'completeWork' },
+            { step: 9, description: 'Begin work on Footer fiber', fiber: 'Footer', action: 'beginWork' },
+            { step: 10, description: 'Collect effects for Footer fiber', fiber: 'Footer', action: 'collectEffects' },
+            { step: 11, description: 'Complete work on Footer fiber', fiber: 'Footer', action: 'completeWork' },
+            { step: 12, description: 'Complete work on App fiber', fiber: 'App', action: 'completeWork' }
+        ];
+
+        // Effect flow steps
+        const effectFlowSteps = [
+            { step: 1, description: 'Render phase: Process App fiber', fiber: 'App', phase: 'render' },
+            { step: 2, description: 'Collect useEffect in App fiber', fiber: 'App', phase: 'collect' },
+            { step: 3, description: 'Render phase: Process Header fiber', fiber: 'Header', phase: 'render' },
+            { step: 4, description: 'Collect useLayoutEffect in Header fiber', fiber: 'Header', phase: 'collect' },
+            { step: 5, description: 'Render phase: Process Content fiber', fiber: 'Content', phase: 'render' },
+            { step: 6, description: 'Collect useEffect in Content fiber', fiber: 'Content', phase: 'collect' },
+            { step: 7, description: 'Collect useLayoutEffect in Content fiber', fiber: 'Content', phase: 'collect' },
+            { step: 8, description: 'Render phase: Process Footer fiber', fiber: 'Footer', phase: 'render' },
+            { step: 9, description: 'Collect useEffect in Footer fiber', fiber: 'Footer', phase: 'collect' },
+            { step: 10, description: 'Commit phase: Execute layout effects', fiber: 'All', phase: 'commit' },
+            { step: 11, description: 'Effect phase: Execute passive effects', fiber: 'All', phase: 'execute' }
+        ];
+
+        class FiberTreeEffectDemo {
+            constructor() {
+                this.currentStep = 0;
+                this.isAutoPlaying = false;
+                this.autoPlayInterval = null;
+                this.fibers = {};
+                this.effectLists = {};
+                
+                this.initializeDemo();
+                this.setupEventListeners();
+            }
+
+            initializeDemo() {
+                this.createFiberTree();
+                this.createWorkLoopSteps();
+                this.createEffectFlowSteps();
+                this.createFiberDetails();
+                this.createEffectLists();
+            }
+
+            createFiberTree() {
+                const fiberTree = document.getElementById('fiberTree');
+                fiberTree.innerHTML = '';
+
+                const fibers = ['App', 'Header', 'Content', 'Footer'];
+                
+                fibers.forEach((fiberName, index) => {
+                    const fiberNode = document.createElement('div');
+                    fiberNode.className = 'fiber-node';
+                    fiberNode.id = `fiber-${fiberName}`;
+                    fiberNode.innerHTML = fiberName;
+                    
+                    fiberTree.appendChild(fiberNode);
+                    this.fibers[fiberName] = fiberNode;
+
+                    // Add connection lines
+                    if (index < fibers.length - 1) {
+                        const connection = document.createElement('div');
+                        connection.className = 'fiber-connection';
+                        connection.style.width = '60px';
+                        connection.style.left = `${120 + index * 100}px`;
+                        fiberTree.appendChild(connection);
+                    }
+                });
+            }
+
+            createWorkLoopSteps() {
+                const workLoop = document.getElementById('workLoop');
+                workLoop.innerHTML = '';
+
+                workLoopSteps.forEach((step, index) => {
+                    const stepElement = document.createElement('div');
+                    stepElement.className = 'work-step';
+                    stepElement.id = `work-step-${index}`;
+                    
+                    stepElement.innerHTML = `
+                        <div class="step-number">${step.step}</div>
+                        <div class="step-description">
+                            ${step.description}
+                            <span class="step-fiber">(${step.fiber})</span>
+                        </div>
+                    `;
+                    
+                    workLoop.appendChild(stepElement);
+                });
+            }
+
+            createEffectFlowSteps() {
+                const effectFlow = document.getElementById('effectFlow');
+                effectFlow.innerHTML = '';
+
+                effectFlowSteps.forEach((step, index) => {
+                    const stepElement = document.createElement('div');
+                    stepElement.className = 'flow-step';
+                    stepElement.id = `flow-step-${index}`;
+                    
+                    const phaseClass = step.phase === 'render' ? 'render' : 
+                                    step.phase === 'collect' ? 'collect' :
+                                    step.phase === 'commit' ? 'commit' : 'execute';
+                    
+                    stepElement.innerHTML = `
+                        <div class="flow-icon ${phaseClass}">${step.step}</div>
+                        <div class="flow-description">
+                            ${step.description}
+                            <span class="flow-fiber">(${step.fiber})</span>
+                        </div>
+                    `;
+                    
+                    effectFlow.appendChild(stepElement);
+                });
+            }
+
+            createFiberDetails() {
+                const fiberDetails = document.getElementById('fiberDetails');
+                fiberDetails.innerHTML = '';
+
+                Object.keys(this.fibers).forEach(fiberName => {
+                    const fiberCard = document.createElement('div');
+                    fiberCard.className = 'fiber-card';
+                    fiberCard.id = `fiber-card-${fiberName}`;
+                    
+                    const component = this.findComponent(fiberName);
+                    const hasEffects = component.effects.length > 0;
+                    
+                    fiberCard.innerHTML = `
+                        <h4>${fiberName} Fiber</h4>
+                        <div class="fiber-property">
+                            <span class="property-name">updateQueue:</span>
+                            <span class="property-value" id="updateQueue-${fiberName}">null</span>
+                        </div>
+                        <div class="fiber-property">
+                            <span class="property-name">lastEffect:</span>
+                            <span class="property-value" id="lastEffect-${fiberName}">null</span>
+                        </div>
+                        <div class="fiber-property">
+                            <span class="property-name">flags:</span>
+                            <span class="property-value" id="flags-${fiberName}">NoFlags</span>
+                        </div>
+                        <div class="fiber-property">
+                            <span class="property-name">Effects:</span>
+                            <span class="property-value" id="effects-${fiberName}">${hasEffects ? component.effects.length : 0}</span>
+                        </div>
+                    `;
+                    
+                    fiberDetails.appendChild(fiberCard);
+                });
+            }
+
+            createEffectLists() {
+                const effectLists = document.getElementById('effectLists');
+                effectLists.innerHTML = '';
+
+                Object.keys(this.fibers).forEach(fiberName => {
+                    const component = this.findComponent(fiberName);
+                    if (component.effects.length === 0) return;
+
+                    const effectList = document.createElement('div');
+                    effectList.className = 'effect-list';
+                    effectList.id = `effect-list-${fiberName}`;
+                    
+                    effectList.innerHTML = `
+                        <h3>${fiberName} Fiber Effect List</h3>
+                        <div id="effects-${fiberName}-container">
+                            ${component.effects.map((effect, index) => `
+                                <div class="effect-item" id="effect-${fiberName}-${index}">
+                                    <span class="effect-type">${effect.type}</span>
+                                    <span class="effect-desc">${effect.desc}</span>
+                                    <span class="effect-status status-pending">Pending</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                    
+                    effectLists.appendChild(effectList);
+                });
+            }
+
+            findComponent(name) {
+                if (name === 'App') return componentTree;
+                return componentTree.children.find(child => child.name === name);
+            }
+
+            setupEventListeners() {
+                document.getElementById('startBtn').addEventListener('click', () => this.startWorkLoop());
+                document.getElementById('stepBtn').addEventListener('click', () => this.nextStep());
+                document.getElementById('resetBtn').addEventListener('click', () => this.reset());
+                document.getElementById('autoBtn').addEventListener('click', () => this.toggleAutoPlay());
+            }
+
+            startWorkLoop() {
+                this.currentStep = 0;
+                this.updatePhase('render');
+                this.highlightCurrentStep();
+                document.getElementById('stepBtn').disabled = false;
+                document.getElementById('startBtn').disabled = true;
+            }
+
+            nextStep() {
+                if (this.currentStep >= workLoopSteps.length) {
+                    this.completeWorkLoop();
+                    return;
+                }
+
+                const step = workLoopSteps[this.currentStep];
+                this.processStep(step);
+                this.currentStep++;
+                this.highlightCurrentStep();
+            }
+
+            processStep(step) {
+                const fiberNode = this.fibers[step.fiber];
+                const fiberCard = document.getElementById(`fiber-card-${step.fiber}`);
+                
+                // Highlight current fiber
+                this.highlightFiber(fiberNode, step.action);
+                this.highlightFiberCard(fiberCard, step.action);
+                
+                // Process effect collection
+                if (step.action === 'collectEffects') {
+                    this.collectEffects(step.fiber);
+                }
+                
+                // Update work step
+                const workStep = document.getElementById(`work-step-${this.currentStep}`);
+                workStep.classList.add('active');
+                
+                setTimeout(() => {
+                    workStep.classList.remove('active');
+                    workStep.classList.add('completed');
+                }, 1000);
+            }
+
+            highlightFiber(fiberNode, action) {
+                fiberNode.classList.remove('has-effects', 'collecting', 'completed');
+                
+                if (action === 'collectEffects') {
+                    fiberNode.classList.add('collecting');
+                    setTimeout(() => {
+                        fiberNode.classList.remove('collecting');
+                        fiberNode.classList.add('has-effects');
+                    }, 1000);
+                } else if (action === 'completeWork') {
+                    fiberNode.classList.add('completed');
+                }
+            }
+
+            highlightFiberCard(fiberCard, action) {
+                fiberCard.classList.remove('active');
+                
+                if (action === 'collectEffects' || action === 'beginWork') {
+                    fiberCard.classList.add('active');
+                }
+            }
+
+            collectEffects(fiberName) {
+                const component = this.findComponent(fiberName);
+                if (!component || component.effects.length === 0) return;
+
+                // Update fiber properties
+                document.getElementById(`updateQueue-${fiberName}`).textContent = 'FunctionComponentUpdateQueue';
+                document.getElementById(`lastEffect-${fiberName}`).textContent = 'Effect (circular)';
+                document.getElementById(`flags-${fiberName}`).textContent = 'HasEffects';
+                
+                // Highlight effects being collected
+                component.effects.forEach((effect, index) => {
+                    const effectItem = document.getElementById(`effect-${fiberName}-${index}`);
+                    if (effectItem) {
+                        effectItem.classList.add('collecting');
+                        setTimeout(() => {
+                            effectItem.classList.remove('collecting');
+                            effectItem.classList.add('active');
+                            effectItem.querySelector('.effect-status').textContent = 'Collected';
+                            effectItem.querySelector('.effect-status').className = 'effect-status status-collecting';
+                        }, 500 * (index + 1));
+                    }
+                });
+            }
+
+            highlightCurrentStep() {
+                // Update work loop steps
+                document.querySelectorAll('.work-step').forEach((step, index) => {
+                    step.classList.remove('active');
+                    if (index === this.currentStep) {
+                        step.classList.add('active');
+                    }
+                });
+
+                // Update effect flow steps
+                const flowStepIndex = Math.min(this.currentStep, effectFlowSteps.length - 1);
+                document.querySelectorAll('.flow-step').forEach((step, index) => {
+                    step.classList.remove('active');
+                    if (index === flowStepIndex) {
+                        step.classList.add('active');
+                    }
+                });
+            }
+
+            updatePhase(phase) {
+                document.querySelectorAll('.phase').forEach(p => {
+                    p.classList.remove('active', 'completed');
+                    p.classList.add('pending');
+                });
+
+                if (phase === 'render') {
+                    document.getElementById('renderPhase').classList.remove('pending');
+                    document.getElementById('renderPhase').classList.add('active');
+                } else if (phase === 'commit') {
+                    document.getElementById('renderPhase').classList.remove('active');
+                    document.getElementById('renderPhase').classList.add('completed');
+                    document.getElementById('commitPhase').classList.remove('pending');
+                    document.getElementById('commitPhase').classList.add('active');
+                } else if (phase === 'effect') {
+                    document.getElementById('commitPhase').classList.remove('active');
+                    document.getElementById('commitPhase').classList.add('completed');
+                    document.getElementById('effectPhase').classList.remove('pending');
+                    document.getElementById('effectPhase').classList.add('active');
+                }
+            }
+
+            completeWorkLoop() {
+                this.updatePhase('commit');
+                setTimeout(() => {
+                    this.updatePhase('effect');
+                    this.executeEffects();
+                }, 2000);
+            }
+
+            executeEffects() {
+                // Simulate effect execution
+                Object.keys(this.fibers).forEach(fiberName => {
+                    const component = this.findComponent(fiberName);
+                    if (component && component.effects.length > 0) {
+                        component.effects.forEach((effect, index) => {
+                            const effectItem = document.getElementById(`effect-${fiberName}-${index}`);
+                            if (effectItem) {
+                                setTimeout(() => {
+                                    effectItem.querySelector('.effect-status').textContent = 'Executed';
+                                    effectItem.querySelector('.effect-status').className = 'effect-status status-executed';
+                                }, 500 * (index + 1));
+                            }
+                        });
+                    }
+                });
+            }
+
+            toggleAutoPlay() {
+                if (this.isAutoPlaying) {
+                    this.stopAutoPlay();
+                } else {
+                    this.startAutoPlay();
+                }
+            }
+
+            startAutoPlay() {
+                this.isAutoPlaying = true;
+                document.getElementById('autoBtn').textContent = 'Stop Auto Play';
+                this.autoPlayInterval = setInterval(() => {
+                    if (this.currentStep < workLoopSteps.length) {
+                        this.nextStep();
+                    } else {
+                        this.stopAutoPlay();
+                    }
+                }, 1500);
+            }
+
+            stopAutoPlay() {
+                this.isAutoPlaying = false;
+                document.getElementById('autoBtn').textContent = 'Auto Play';
+                if (this.autoPlayInterval) {
+                    clearInterval(this.autoPlayInterval);
+                    this.autoPlayInterval = null;
+                }
+            }
+
+            reset() {
+                this.currentStep = 0;
+                this.stopAutoPlay();
+                
+                // Reset fiber nodes
+                Object.values(this.fibers).forEach(fiber => {
+                    fiber.classList.remove('has-effects', 'collecting', 'completed');
+                });
+                
+                // Reset work steps
+                document.querySelectorAll('.work-step').forEach(step => {
+                    step.classList.remove('active', 'completed');
+                });
+                
+                // Reset effect items
+                document.querySelectorAll('.effect-item').forEach(item => {
+                    item.classList.remove('active', 'collecting');
+                    const status = item.querySelector('.effect-status');
+                    if (status) {
+                        status.textContent = 'Pending';
+                        status.className = 'effect-status status-pending';
+                    }
+                });
+                
+                // Reset fiber cards
+                document.querySelectorAll('.fiber-card').forEach(card => {
+                    card.classList.remove('active');
+                });
+                
+                // Reset fiber properties
+                Object.keys(this.fibers).forEach(fiberName => {
+                    document.getElementById(`updateQueue-${fiberName}`).textContent = 'null';
+                    document.getElementById(`lastEffect-${fiberName}`).textContent = 'null';
+                    document.getElementById(`flags-${fiberName}`).textContent = 'NoFlags';
+                });
+                
+                // Reset phases
+                document.querySelectorAll('.phase').forEach(p => {
+                    p.classList.remove('active', 'completed');
+                    p.classList.add('pending');
+                });
+                
+                // Reset flow steps
+                document.querySelectorAll('.flow-step').forEach(step => {
+                    step.classList.remove('active');
+                });
+                
+                // Reset buttons
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stepBtn').disabled = true;
+                document.getElementById('autoBtn').textContent = 'Auto Play';
+            }
+        }
+
+        // Initialize the demo when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new FiberTreeEffectDemo();
+        });
+    </script>
+</body>
+</html> 
