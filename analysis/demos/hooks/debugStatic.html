@@ -1,0 +1,43 @@
+<div id="container"></div>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/babel" data-type="module">
+    import React from "https://esm.sh/react?dev";
+    import ReactDOMClient from "https://esm.sh/react-dom/client?dev";
+
+    function HookDemo() {
+        const [count, setCount] = React.useState(0);
+
+        function add() {
+            debugger
+            setCount(c => {
+                debugger
+                
+            } c + 1);
+            setCount(count + 1);
+        }
+
+        return <h2 onClick={add}>Count: {count}</h2>;
+    }
+
+    function App() {
+        return (
+            <div>
+                <HookDemo />
+            </div>
+        );
+    }
+
+    const DebugApp = (
+        <React.Profiler id="App" onRender={(id, phase, actualDuration) => {
+            console.log(`Render ${id} took ${actualDuration}ms`);
+        }}>
+            <App />
+        </React.Profiler>
+    )
+
+
+    const rootElement = document.getElementById("container");
+    const root = ReactDOMClient.createRoot(rootElement)
+
+    root.render(DebugApp);
+</script>
